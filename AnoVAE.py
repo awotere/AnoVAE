@@ -277,6 +277,7 @@ class AnoVAE:
         import numpy as np
 
         print("μと∑を取得します")
+
         encoder_layer = self.vae.get_layer("encoder")
         encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
         mu_sigma = encoder.predict(X_train)
@@ -399,7 +400,7 @@ class AnoVAE:
         X_reco = []
         for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
             # z取得
-            _,_,z = encoder.predict([x_true[0]])
+            _,_,z = encoder.predict(np.expand_dims(x_true[0],axis=0))
             z_list.append(z)
             prev_h = decoder_initial_model.predict(z)
 
