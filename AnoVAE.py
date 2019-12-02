@@ -266,7 +266,7 @@ class AnoVAE:
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_id{1}_ld{2}_b{3}".format(G.TIMESTEPS, G.INTERMIDIATE_DIM, G.Z_DIM, G.BATCH_SIZE))
 
         weight_path = "./data/weight/{0}.h5".format(name)
-        self.vae.save(filepath=weight_path)
+        self.vae.save_weights(filepath=weight_path)
         print("weightを保存しました:\n{0}", weight_path)
 
         #mu,sigmaを求め、保存
