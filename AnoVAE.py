@@ -107,8 +107,134 @@ class AnoVAE:
 
     # コンストラクタ
     def __init__(self):
-        self.vae = GV.BuildVAE()
+        self.vae = self.BuildVAE()
         return
+
+    def BuildVAE(self):
+        """
+        入力(input)
+        ↓
+        GRU(encoder)
+        ↓
+        内部状態
+        ↓   ↓
+        mean, log_var
+        ↓
+        zをサンプリング(ここまでencoder)
+        ↓（このzを復元された内部状態だとして）
+        GRU(decoder)
+        ↓
+        全結合層(出力)
+        戻り値
+         model
+        """
+
+        # LATENT_DIM = G.LATENT_DIM
+
+        import keras.backend as K
+        import math
+        import os
+        import numpy as np
+        from keras.layers import Input, InputLayer, Dense, RepeatVector, Lambda, TimeDistributed
+        # from keras.layers import GRU
+        from keras.layers import CuDNNGRU as GRU  # GPU用
+        from keras.models import Model, Sequential
+        from keras.callbacks import TensorBoard, EarlyStopping
+        from keras.optimizers import adam
+        from keras import backend as K
+
+        from sklearn.preprocessing import MinMaxScaler
+
+        # encoderの定義
+        # (None, TIMESTEPS, 1)
+        encoder_inputs = Input(shape=(G.TIMESTEPS, 1))
+
+        # (None, Z_DIM) <- h
+        _, h = GRU(G.Z_DIM, return_state=True)(encoder_inputs)
+
+        # (None, Z_DIM) <- μ
+        z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
+
+        # (None, Z_DIM) <- σ^ (σ = exp(log(σ^/2)))
+        z_log_var = Dense(G.Z_DIM, name='z_log_var')(h)  # z_sigmaを出力
+
+        #z導出
+        def sampling(args):
+            """
+            z_mean, z_log_var=argsからzをサンプリングする関数
+            戻り値
+                z (tf.tensor):サンプリングされた潜在変数
+            """
+            z_mean, z_log_var = args
+            batch = K.shape(z_mean)[0]
+            dim = K.int_shape(z_mean)[1]
+            # by default, random_normal has mean=0 and std=1.0
+            epsilon = K.random_normal(shape=(batch, dim))
+            # K.exp(0.5 * z_log_var)が分散に標準偏差になっている
+            # いきなり標準偏差を求めてしまっても構わないが、負を許容してしまうのでこのようなトリックを用いている
+            return z_mean + K.exp(0.5 * z_log_var) * epsilon
+
+        # (None,Z_DIM)
+        z = Lambda(sampling, output_shape=(G.Z_DIM,), name='z')([z_mean, z_log_var])
+
+        #エンコーダー (1次元のTIMESTEPS分のデータ) -> ([μ,σ^,z])
+        encoder = Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
+
+        print("encoderの構成")
+        encoder.summary()
+        # encoder部分は入力を受けて平均、分散、そこからランダムサンプリングしたものの3つを返す
+
+        # decoderの定義
+
+        from keras.layers import concatenate
+
+        # (None, TIMESTEPS, 1)
+        decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='z_sampling')
+
+        # (None, TIMESTEPS, Z_DIM)
+        overlay_x = RepeatVector(G.TIMESTEPS)(z)
+
+        # (None, TIMESTEPS, 1 + Z_DIM)
+        actual_input_x = concatenate([decoder_inputs, overlay_x], 2)
+
+        # zから初期状態hを決定
+        # (None, Z_DIM)
+        initial_h = Dense(G.Z_DIM, activation="tanh")(z)
+
+        # (None, TIMESTEP, Z_DIM)
+        zd = GRU(G.Z_DIM, return_sequences=True)(actual_input_x, initial_state=initial_h)
+
+        outputs = TimeDistributed(Dense(1, activation='sigmoid'))(zd)
+
+        decoder = Model(decoder_inputs, outputs, name='decoder')
+        print("decoderの構成")
+        decoder.summary()
+
+        # まとめ
+        vae = Model(encoder_inputs, outputs, name='VAE')
+
+        # 損失関数をこのモデルに加える
+        def loss(inputs, outputs):
+            """
+            損失関数の定義
+            """
+            from keras.losses import binary_crossentropy
+            z_mean, z_log_var, _ = encoder(inputs)
+            reconstruction_loss = binary_crossentropy(K.flatten(inputs), K.flatten(outputs))
+            reconstruction_loss *= 1 * G.TIMESTEPS
+            kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
+            kl_loss = K.sum(kl_loss, axis=-1)
+            kl_loss *= -0.5
+
+            lam = 0.01  # そのままじゃうまく行かなかったので重み付け
+            return K.mean((1 - lam) * reconstruction_loss + lam * kl_loss)
+
+        vae.add_loss(loss(encoder_inputs, outputs))
+        print("vaeの構成")
+        vae.summary()
+
+        return vae
+
 
     # メンバ関数
     def Train(self, path=None):
