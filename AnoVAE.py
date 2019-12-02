@@ -259,13 +259,13 @@ class AnoVAE:
                      batch_size=G.BATCH_SIZE,
                      shuffle=True,
                      validation_split=0.1,
-                     callbacks=[TensorBoard(log_dir="/train_log/"), EarlyStopping(patience=10)])
+                     callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
         print("学習終了!")
 
         # W保存
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_id{1}_ld{2}_b{3}".format(G.TIMESTEPS, G.INTERMIDIATE_DIM, G.Z_DIM, G.BATCH_SIZE))
 
-        weight_path = "/data/weight/{0}".format(name)
+        weight_path = "./data/weight/{0}".format(name)
         self.vae.save(weight_path)
         print("weightを保存しました:\n{0}", weight_path)
 
