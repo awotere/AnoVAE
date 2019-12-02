@@ -394,8 +394,7 @@ class AnoVAE:
         # predict
 
         z_list = []
-        X_reco = np.zeros()
-
+        X_reco = []
         for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
             # z取得
             _,_,z = encoder.predict([x_true[0]])
@@ -404,7 +403,7 @@ class AnoVAE:
 
             for i in G.TIMESTEPS:
                 x_reco, prev_h = decoder.predict([x_true[0][i][0], z, prev_h])
-                np.append(X_reco,x_reco)
+                X_reco.append(x_reco)
 
         print("再構成完了しました")
 
