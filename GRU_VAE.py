@@ -114,7 +114,7 @@ def BuildVAE():
     from keras.layers import concatenate
 
 
-    decoder_inputs = Input(shape=(G.TIMESTEPS,), name='z_sampling')
+    decoder_inputs = Input(shape=(G.TIMESTEPS,1), name='z_sampling')
     # (N,TIMESTEPS,1)
 
     overlay_x = RepeatVector(G.TIMESTEPS)(z)
@@ -124,11 +124,12 @@ def BuildVAE():
     actual_input_x = concatenate([decoder_inputs,overlay_x],2)
 
     #zから初期状態hを決定
-    initial_h = Dense(G.TIMESTEPS, activation="tanh")(z)
+    initial_h = Dense(G.Z_DIM, activation="tanh")(z)
 
     zd = GRU(G.Z_DIM,return_sequences=True)(actual_input_x, initial_state=initial_h)
 
-    outputs = TimeDistributed(Dense(1, activation='sigmoid'))(zd)
+
+    outputs = Dense(G.NUM_TIMESTEPS, activation='sigmoid')(zd)
 
     #x = Dense(G.INTERMIDIATE_DIM,activation = "sigmoid")(z)
     #outputs = Dense(G.NUM_TIMESTEPS,activation = "sigmoid")(x)
