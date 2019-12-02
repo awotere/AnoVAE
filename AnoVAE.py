@@ -201,14 +201,15 @@ class AnoVAE:
         # (None, Z_DIM)
         initial_h = Dense(G.Z_DIM, activation="tanh")(z)
 
-        # (None, TIMESTEP, Z_DIM)
+        # (None, TIMESTEPS, Z_DIM)
         zd = GRU(G.Z_DIM, return_sequences=True)(actual_input_x, initial_state=initial_h)
 
+        # (None, TIMESTEPS, 1)
         outputs = TimeDistributed(Dense(1, activation='sigmoid'))(zd)
 
-        decoder = Model(decoder_inputs, outputs, name='decoder')
-        print("decoderの構成")
-        decoder.summary()
+        #decoder = Model(decoder_inputs, outputs, name='decoder')
+        #print("decoderの構成")
+        #decoder.summary()
 
         # まとめ
         vae = Model(encoder_inputs, outputs, name='VAE')
