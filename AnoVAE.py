@@ -369,7 +369,7 @@ class AnoVAE:
         # (1, 1, 1)
 
         input_z = Input(shape=(G.Z_DIM,)) #z
-        # (1, 1, Z_DIM)
+        # (1, Z_DIM)
 
         overlay_x = RepeatVector(1)(input_z)
         # (1, 1, Z_DIM)
@@ -401,7 +401,7 @@ class AnoVAE:
         for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
             # z取得
             _,_,z = encoder.predict(np.expand_dims(x_true[0],axis=0))
-            z_list.append(z)
+            z_list.append(z[0])
             prev_h = decoder_initial_model.predict(z)
 
             for i in range(G.TIMESTEPS):
@@ -429,22 +429,15 @@ class AnoVAE:
                 sum += abs(true[j] - X_reco[j])
             error.append(sum)
 
-        from sklearn.manifold import TSNE
+        # z_listをt_SNEを用いて描画
+        Show_t_SNE(z_list)  # z
 
-        tsne = TSNE(n_components=2)
-        z_list = tsne.fit_transform(z_list)
-
-        #Show_t_SNE(z[0])  # z_mu
-        #Show_t_SNE(np.exp(z[1]/2))  # z_log_var
-        #Show_t_SNE(z[2])  # z
-
+        #マハラノビス距離の計算
         from scipy.spatial import distance
 
         dm = []
         for z in z_list:
             dm.append(distance.mahalanobis(z,self.true_mu,np.linalg.inv(self.true_SIGMA)))
-
-        #Show_t_SNE(z_list)
 
         print("true,reco,error,dmデータ作成完了しました")
 
