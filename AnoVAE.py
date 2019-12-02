@@ -200,7 +200,7 @@ class AnoVAE:
 
         # zから初期状態hを決定
         # (None, Z_DIM)
-        initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(z)
+        initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(input_z)
 
         # (None, TIMESTEPS, Z_DIM)
         zd,_ = GRU(G.Z_DIM, return_sequences=True,return_state=True,name="GRU")(actual_input_x, initial_state=initial_h)
