@@ -404,7 +404,7 @@ class AnoVAE:
         #reconstract
         for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
 
-            prev_h = decoder_initial_model.predict(z)
+            prev_h = decoder_initial_model.predict(np.expand_dims(z,axis=0))
             for i in range(G.TIMESTEPS):
                 #[1,1,1]が必要なため、i[0] -> [i[0]] -> [[i[0]]] の処理をする
                 x = np.expand_dims(x_true[0][i], axis=0)
