@@ -190,7 +190,7 @@ class AnoVAE:
 
         # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
         decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
-        input_z = Input(shape=(G.Z_DIM,1))
+        input_z = Input(shape=(G.Z_DIM,),name="input_z")
 
         # (None, TIMESTEPS, Z_DIM) <- from z
         overlay_x = RepeatVector(G.TIMESTEPS)(input_z)
