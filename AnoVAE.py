@@ -199,13 +199,13 @@ class AnoVAE:
 
         # zから初期状態hを決定
         # (None, Z_DIM)
-        initial_h = Dense(G.Z_DIM, activation="tanh")(z)
+        initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(z)
 
         # (None, TIMESTEPS, Z_DIM)
-        zd = GRU(G.Z_DIM, return_sequences=True)(actual_input_x, initial_state=initial_h)
+        zd,_ = GRU(G.Z_DIM, return_sequences=True,return_state=True,name="GRU")(actual_input_x, initial_state=initial_h)
 
         # (None, TIMESTEPS, 1)
-        outputs = TimeDistributed(Dense(1, activation='sigmoid'))(zd)
+        outputs = TimeDistributed(Dense(1, activation='sigmoid'),name="output_layer")(zd)
 
         #decoder = Model(decoder_inputs, outputs, name='decoder')
         #print("decoderの構成")
@@ -259,13 +259,13 @@ class AnoVAE:
                      batch_size=G.BATCH_SIZE,
                      shuffle=True,
                      validation_split=0.1,
-                     callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
+                     callbacks=[TensorBoard(log_dir="/train_log/"), EarlyStopping(patience=10)])
         print("学習終了!")
 
         # W保存
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_id{1}_ld{2}_b{3}".format(G.TIMESTEPS, G.INTERMIDIATE_DIM, G.Z_DIM, G.BATCH_SIZE))
 
-        weight_path = "./data/weight/{0}.h5".format(name)
+        weight_path = "/data/weight/{0}".format(name)
         self.vae.save(weight_path)
         print("weightを保存しました:\n{0}", weight_path)
 
@@ -332,16 +332,79 @@ class AnoVAE:
             MSGBOX.showinfo("AnoVAE", "testデータを選んでください")
             path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
-        # テストデータと再構成データ作成
-        X_true = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
+        # テストデータセット作成
+        X_true,_ = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
+
         print("テストデータを読み込みました:\n{0}".format(path))
 
-        X_reco = self.vae.predict(X_true);
+        #
+        import keras.backend as K
+        import math
+        import os
+        import numpy as np
+        from keras.layers import Input, InputLayer, Dense, RepeatVector, Lambda, TimeDistributed
+        # from keras.layers import GRU
+        from keras.layers import CuDNNGRU as GRU  # GPU用
+        from keras.models import Model, Sequential
+        from keras.callbacks import TensorBoard, EarlyStopping
+        from keras.optimizers import adam
+        from keras import backend as K
+        from keras.layers import concatenate
+
+        #######  運用エンコーダ  #######
+
+        encoder = Model(self.vae.input, self.vae.get_layer("encoder").get_output_at(0))
+        # (1, TIMESTEPS, 1) -> ([zμ, zσ^, z])
+
+        print("運用encoderのモデルを作成しました")
+
+        #######  運用デコーダ  #######
+
+        decoder_input = Input(shape=(1, 1)) #data
+        # (1, 1, 1)
+
+        input_z = Input(shape=(G.Z_DIM,)) #z
+        # (1, 1, Z_DIM)
+
+        overlay_x = RepeatVector(1)(input_z)
+        # (1, 1, Z_DIM)
+
+        actual_input_x = concatenate([decoder_input, overlay_x], 2) #data + z
+        # (1, 1, 1 + Z_DIM)
+
+        h_input = Input(shape=(G.Z_DIM,)) #h
+        # (1, 1, Z_DIM)
+
+        output, last_h = self.vae.get_layer(name="GRU")(actual_input_x,initial_state=h_input)
+        # (1, 1, Z_DIM), (1, Z_DIM)
+
+        output = self.vae.get_layer(name="output_layer")(output)
+        # (1, 1, 1)
+
+        initial_state = self.vae.get_layer(name="initial_state_layer")(input_z)
+
+        decoder_initial_model = Model(input_z, initial_state)
+        decoder = Model([decoder_input, input_z,h_input],[output, last_h])
+
+        print("運用decoderのモデルを作成しました")
+
+        X_reco = np.zeros()
+
+        for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
+            # z取得
+            _,_,z = encoder.predict([x_true[0]])
+
+            prev_h = decoder_initial_model.predict(z)
+
+            for i in G.TIMESTEPS:
+                x_reco, prev_h = decoder.predict([x_true[0][i][0], z, prev_h])
+                np.append(X_reco,x_reco)
+
         print("再構成完了しました")
 
         # リストに変換
         true = TestData2List(X_true)
-        reco = TestData2List(X_reco)
+
 
         # エラーレート計算
         error = []
@@ -349,13 +412,10 @@ class AnoVAE:
 
             sum = 0
             for j in range(max(0, i - G.TIMESTEPS), i):
-                sum += abs(true[j] - reco[j])
+                sum += abs(true[j] - X_reco[j])
             error.append(sum)
 
         # zの取得
-        from keras.models import Model
-
-        encoder = Model(self.vae.input, self.vae.get_layer("encoder").get_output_at(0))
 
         z_list = (encoder.predict(X_true))[2]
 
@@ -378,7 +438,7 @@ class AnoVAE:
 
         print("true,reco,error,dmデータ作成完了しました")
 
-        return true, reco, error ,dm
+        return true, X_reco, error ,dm
 
     def LoadMuSIGMA(self):
 
