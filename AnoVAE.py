@@ -188,22 +188,25 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
-        decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
+        # (None, 1, 1) <- 予測する波形の初期値
+        decoder_inputs = Input(shape=(1, 1), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,),name="input_z")
 
-        # (None, TIMESTEPS, Z_DIM) <- from z
-        overlay_x = RepeatVector(G.TIMESTEPS)(input_z)
+        # (None, 1, Z_DIM)
+        input_z = RepeatVector(1)(input_z)
 
-        # (None, TIMESTEPS, 1 + Z_DIM)
-        actual_input_x = concatenate([decoder_inputs, overlay_x], 2)
+        # (None, 1, 1 + Z_DIM)
+        actual_input_x = concatenate([decoder_inputs, input_z], 2)
+
+        # (None, TIMESTEPS, 1 + Z_DIM) <- from z
+        repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
 
         # zから初期状態hを決定
         # (None, Z_DIM)
         initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(input_z)
 
         # (None, TIMESTEPS, Z_DIM)
-        zd,_ = GRU(G.Z_DIM, return_sequences=True,return_state=True,name="GRU")(actual_input_x, initial_state=initial_h)
+        zd = GRU(G.Z_DIM, return_sequences=True, name="GRU")(repeat_x, initial_state=initial_h)
 
         # (None, TIMESTEPS, 1)
         outputs = TimeDistributed(Dense(1, activation='sigmoid'),name="output_layer")(zd)
@@ -366,6 +369,7 @@ class AnoVAE:
 
         #######  運用デコーダ  #######
 
+        '''
         decoder_input = Input(shape=(1, 1)) #data
         # (1, 1, 1)
 
@@ -377,22 +381,27 @@ class AnoVAE:
 
         actual_input_x = concatenate([decoder_input, overlay_x], 2) #data + z
         # (1, 1, 1 + Z_DIM)
+        
+        repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
+        # (1, TIMESTEPS, 1 + Z_DIM)
+        
+        decoder_layer = self.vae.get_layer(name="decoder")
+        init_h = decoder_layer.get_layer(name="initial_state_layer")(input_z)
+        # (1, Z_DIM)
 
-        h_input = Input(shape=(G.Z_DIM,)) #h
-        # (1, 1, Z_DIM)
-
-        decoder = self.vae.get_layer(name="decoder")
-        output, last_h = decoder.get_layer(name="GRU")(actual_input_x,initial_state=h_input)
-        # (1, 1, Z_DIM), (1, Z_DIM)
+        output = decoder_layer.get_layer(name="GRU")(actual_input_x, initial_state=init_h)
+        # (1, TIMESTEPS, Z_DIM)
 
         output = TimeDistributed(Dense(1, activation='sigmoid'))(output)
-        # (1, 1, 1)
+        # (1, TIMESTEPS, 1)
 
-        initial_state = decoder.get_layer(name="initial_state_layer")(input_z)
+        decoder = Model([decoder_input, input_z],output)
+        '''
+        decoder_layer = self.vae.get_layer(name="decoder")
+        decoder_input = decoder_layer.get_layer(name="decoder_inputs").get_input_at(0)
+        input_z = decoder_layer.get_layer(name="input_z").get_input_at(0)
 
-        decoder_initial_model = Model(input_z, initial_state)
-        decoder = Model([decoder_input, input_z,h_input],[output, last_h])
-
+        decoder = Model([decoder_input,input_z],decoder_layer.get_output_at(0))
         print("運用decoderのモデルを作成しました")
         decoder.summary()
 
@@ -408,14 +417,9 @@ class AnoVAE:
 
             #zは[1,25]
             z = np.expand_dims(z,axis=0)
-            prev_h = decoder_initial_model.predict(z)
-            for i in range(G.TIMESTEPS):
-                #[1,1,1]が必要なため、i[0] -> [i[0]] -> [[i[0]]] の処理をする
-                x = np.expand_dims(x_true[i], axis=0)
-                x = np.expand_dims(x, axis=0)
-
-                x_reco, prev_h = decoder.predict([x, z, prev_h])
-                X_reco.append(x_reco[0][0][0])
+            x_true =  np.expand_dims(x_true,axis=0)
+            x_reco = decoder.predict([x_true,z])
+            X_reco += [x_reco[0][y][0] for y in range(G.TIMESTEPS)]
 
         print("再構成完了しました")
 
