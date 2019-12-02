@@ -147,10 +147,10 @@ class AnoVAE:
 
         # encoderの定義
         # (None, TIMESTEPS, 1)
-        encoder_inputs = Input(shape=(G.TIMESTEPS, 1))
+        encoder_inputs = Input(shape=(G.TIMESTEPS, 1),name="encoder_inputs")
 
         # (None, Z_DIM) <- h
-        _, h = GRU(G.Z_DIM, return_state=True)(encoder_inputs)
+        _, h = GRU(G.Z_DIM, return_state=True, name="encoder_GRU")(encoder_inputs)
 
         # (None, Z_DIM) <- μ
         z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
@@ -189,7 +189,7 @@ class AnoVAE:
         from keras.layers import concatenate
 
         # (None, TIMESTEPS, 1)
-        decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='z_sampling')
+        decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
 
         # (None, TIMESTEPS, Z_DIM)
         overlay_x = RepeatVector(G.TIMESTEPS)(z)
