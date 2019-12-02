@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #エラーレート算出
 def GetErrorRate(test,pred):
     sum = 0
-    for i in range(G.NUM_TIMESTEPS):
+    for i in range(G.TIMESTEPS):
         sum = sum + abs(test[0][i][0] - pred[0][i][0])
 
     return sum
@@ -24,18 +24,18 @@ vae.load_weights("./data/gru_vae.h5")
 def pause_plot():
     fig,(ax1,ax2) = plt.subplots(2,1)
 
-    x = range(G.NUM_TIMESTEPS)
+    x = range(G.TIMESTEPS)
 
-    true = [0]*G.NUM_TIMESTEPS
-    pred = [0]*G.NUM_TIMESTEPS
+    true = [0]*G.TIMESTEPS
+    pred = [0]*G.TIMESTEPS
 
     ax1.set_xlabel("time")
-    ax1.set_xlim(0,G.NUM_TIMESTEPS)
+    ax1.set_xlim(0, G.TIMESTEPS)
     ax1.set_ylim(0,1)
     
     ax2.set_ylabel("Error Rate")
     ax2.set_xlabel("time")
-    ax2.set_xlim(0,G.NUM_TIMESTEPS)
+    ax2.set_xlim(0, G.TIMESTEPS)
     ax2.set_ylim(0,7)
 
     line1, = ax1.plot(x,true,label = "original")

@@ -29,14 +29,14 @@ def BuildData(dir,min_val,max_val):
     X = X.reshape(-1,1)
 
     #全サンプル数定義
-    sample_size = X.shape[0] - G.NUM_TIMESTEPS
+    sample_size = X.shape[0] - G.TIMESTEPS
 
     #(サンプル数,timestep)の行列
-    Xr = np.zeros((sample_size, G.NUM_TIMESTEPS))
+    Xr = np.zeros((sample_size, G.TIMESTEPS))
     
     #timestep分スライスして格納
     for i in range(sample_size):
-        Xr[i] = X[i:i + G.NUM_TIMESTEPS].T
+        Xr[i] = X[i:i + G.TIMESTEPS].T
 
     #kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
@@ -79,16 +79,16 @@ def BuildVAE():
         return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
     # encoderの定義
-    inputs = Input(shape=(G.NUM_TIMESTEPS, 1))
-    x,h = GRU(G.LATENT_DIM,return_state=True)(inputs)
-    z_mean = Dense(G.LATENT_DIM, name='z_mean')(h)  # z_meanを出力
-    z_log_var = Dense(G.LATENT_DIM, name='z_log_var')(h)  # z_sigmaを出力
+    encoder_inputs = Input(shape=(G.TIMESTEPS, 1))
+    _, h = GRU(G.Z_DIM, return_state=True)(encoder_inputs)
+    z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
+    z_log_var = Dense(G.Z_DIM, name='z_log_var')(h)  # z_sigmaを出力
 
     # use reparameterization trick to push the sampling out as input
     # note that "output_shape" isn't necessary with the TensorFlow backend
-    z = Lambda(sampling, output_shape=(G.LATENT_DIM,), name='z')([z_mean, z_log_var]) 
+    z = Lambda(sampling, output_shape=(G.Z_DIM,), name='z')([z_mean, z_log_var])
 
-    encoder = Model(inputs, [z_mean, z_log_var, z], name="encoder")
+    encoder = Model(encoder_inputs, [z_mean, z_log_var, z], name="encoder")
     print("encoderの構成")
     encoder.summary()
     # encoder部分は入力を受けて平均、分散、そこからランダムサンプリングしたものの3つを返す
@@ -111,19 +111,35 @@ def BuildVAE():
     #techblog.exawizards.com/entry/2018/11/09/145402
 
     #3
-    latent_inputs = Input(shape=(G.LATENT_DIM,), name='z_sampling')
+    from keras.layers import concatenate
 
+
+    decoder_inputs = Input(shape=(G.TIMESTEPS,), name='z_sampling')
+    # (N,TIMESTEPS,1)
+
+    overlay_x = RepeatVector(G.TIMESTEPS)(z)
+    # (N,TIMESTEPS,LATENT_DIM)
+
+    #入力は[データ,z]
+    actual_input_x = concatenate([decoder_inputs,overlay_x],2)
+
+    #zから初期状態hを決定
+    initial_h = Dense(G.TIMESTEPS, activation="tanh")(z)
+
+    zd = GRU(G.Z_DIM,return_sequences=True)(actual_input_x, initial_state=initial_h)
+
+    outputs = TimeDistributed(Dense(1, activation='sigmoid'))(zd)
 
     #x = Dense(G.INTERMIDIATE_DIM,activation = "sigmoid")(z)
     #outputs = Dense(G.NUM_TIMESTEPS,activation = "sigmoid")(x)
 
     #decoder = Model(z, outputs, name='decoder')
-    #print("decoderの構成")
-    #decoder.summary()
+    decoder = Model(decoder_inputs, outputs, name='decoder')
+    print("decoderの構成")
+    decoder.summary()
     
     #まとめ
-    outputs = decoder(encoder(inputs)[2])
-    vae = Model(inputs, outputs, name='VAE')
+    vae = Model(encoder_inputs, outputs, name='VAE')
 
     # 損失関数をこのモデルに加える
     def loss(inputs, outputs):
@@ -133,7 +149,7 @@ def BuildVAE():
         from keras.losses import binary_crossentropy
         z_mean, z_log_var, _ = encoder(inputs)
         reconstruction_loss = binary_crossentropy(K.flatten(inputs), K.flatten(outputs))
-        reconstruction_loss *= 1 * G.NUM_TIMESTEPS
+        reconstruction_loss *= 1 * G.TIMESTEPS
         kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
         kl_loss = K.sum(kl_loss, axis=-1)
         kl_loss *= -0.5
@@ -141,7 +157,7 @@ def BuildVAE():
         lam = 0.01 #そのままじゃうまく行かなかったので重み付け
         return K.mean((1-lam)*reconstruction_loss + lam*kl_loss)
 
-    vae.add_loss(loss(inputs, outputs))
+    vae.add_loss(loss(encoder_inputs, outputs))
     print("vaeの構成")
     vae.summary()
 

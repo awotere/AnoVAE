@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 #エラーレート算出
 def GetErrorRate(test,pred):
     sum = 0
-    for i in range(G.NUM_TIMESTEPS):
+    for i in range(G.TIMESTEPS):
         sum = sum + abs(test[0][i][0] - pred[0][i][0])
 
     return sum
@@ -41,18 +41,18 @@ def plot(data):
 
     #グラフを作成     
     ax1.set_xlabel("time")
-    ax1.set_xlim(0,G.NUM_TIMESTEPS)
+    ax1.set_xlim(0, G.TIMESTEPS)
     ax1.set_ylim(0,1)
 
-    ax1.plot(range(G.NUM_TIMESTEPS),true,label = "original")
-    ax1.plot(range(G.NUM_TIMESTEPS),pred,label = "reconstructed")
+    ax1.plot(range(G.TIMESTEPS), true, label ="original")
+    ax1.plot(range(G.TIMESTEPS), pred, label ="reconstructed")
     ax1.legend()
     
     ax2.set_ylabel("Error Rate")
     ax2.set_xlabel("time")
-    ax2.set_xlim(0,G.NUM_TIMESTEPS)
+    ax2.set_xlim(0, G.TIMESTEPS)
 
-    ax2.plot(range(G.NUM_TIMESTEPS),G.ERROR_LOG, label="ErrorRate")
+    ax2.plot(range(G.TIMESTEPS), G.ERROR_LOG, label="ErrorRate")
     ax2.legend()
 
 ani = animation.FuncAnimation(fig, plot, interval=1)

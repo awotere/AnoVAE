@@ -13,7 +13,7 @@ vae.load_weights("./data/gru_vae.h5")
 #エラーレート算出
 def GetErrorRate(test,pred):
     sum = 0
-    for i in range(G.NUM_TIMESTEPS):
+    for i in range(G.TIMESTEPS):
         sum = sum + abs(test[0][i][0] - pred[0][i][0])
 
     return sum

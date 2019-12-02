@@ -43,7 +43,7 @@ def GetTestDataSet():
 def TestData2GraphArray(x):
 
     r = []
-    for i in range(G.NUM_TIMESTEPS):
+    for i in range(G.TIMESTEPS):
         r.insert(0,x[0][i][0])
 
     return r
