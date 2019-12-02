@@ -188,15 +188,12 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, 1, 1) <- 予測する波形の初期値
-        decoder_inputs = Input(shape=(1, 1), name='decoder_inputs')
+        # (None, 1) <- 予測する波形の初期値
+        decoder_inputs = Input(shape=(1,), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,),name="input_z")
 
-        # (None, 1, Z_DIM)
-        input_z = RepeatVector(1)(input_z)
-
-        # (None, 1, 1 + Z_DIM)
-        actual_input_x = concatenate([decoder_inputs, input_z], 2)
+        # (None, 1 + Z_DIM)
+        actual_input_x = concatenate([decoder_inputs, input_z], 1)
 
         # (None, TIMESTEPS, 1 + Z_DIM) <- from z
         repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
@@ -416,10 +413,10 @@ class AnoVAE:
         for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
 
             #zは[1,25]
-            z = np.expand_dims(z,axis=0)
-            x_true =  np.expand_dims(x_true,axis=0)
+            z = np.reshape(z, (1,-1))
+            x_true =  np.reshape(x_true, (1,-1))
             x_reco = decoder.predict([x_true,z])
-            X_reco += [x_reco[0][y][0] for y in range(G.TIMESTEPS)]
+            X_reco += np.reshape(x_reco,(-1))
 
         print("再構成完了しました")
 
