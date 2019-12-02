@@ -416,7 +416,7 @@ class AnoVAE:
             z = np.reshape(z, (1,-1))
             x_true =  np.reshape(x_true[0], (1,-1))
             x_reco = decoder.predict([x_true,z])
-            X_reco += np.reshape(x_reco,(-1))
+            X_reco = np.concatenate(X_reco,np.reshape(x_reco,(-1)))
 
         print("再構成完了しました")
 
