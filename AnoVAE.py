@@ -396,23 +396,23 @@ class AnoVAE:
 
         # predict
 
-        z_list = []
         X_reco = []
-        for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
-            # z取得
-            _,_,z = encoder.predict(np.expand_dims(x_true[0],axis=0))
-            z_list.append(z[0])
+
+        # z取得
+        _, _, z_list = encoder.predict(X_true)
+
+        #reconstract
+        for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
+
             prev_h = decoder_initial_model.predict(z)
-
             for i in range(G.TIMESTEPS):
-
                 #[1,1,1]が必要なため、i[0] -> [i[0]] -> [[i[0]]] の処理をする
                 x = np.expand_dims(x_true[0][i], axis=0)
                 x = np.expand_dims(x, axis=0)
 
                 np.expand_dims(x_true[0][i], axis=0)
                 x_reco, prev_h = decoder.predict([x, z, prev_h])
-                X_reco.append(x_reco)
+                X_reco.append(x_reco[0][0][0])
 
         print("再構成完了しました")
 
