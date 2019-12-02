@@ -405,7 +405,13 @@ class AnoVAE:
             prev_h = decoder_initial_model.predict(z)
 
             for i in range(G.TIMESTEPS):
-                x_reco, prev_h = decoder.predict([x_true[0][i][0], z, prev_h])
+
+                #[1,1,1]が必要なため、i[0] -> [i[0]] -> [[i[0]]] の処理をする
+                x = np.expand_dims(x_true[0][i], axis=0)
+                x = np.expand_dims(x, axis=0)
+
+                np.expand_dims(x_true[0][i], axis=0)
+                x_reco, prev_h = decoder.predict([x, z, prev_h])
                 X_reco.append(x_reco)
 
         print("再構成完了しました")
