@@ -404,7 +404,7 @@ class AnoVAE:
             z_list.append(z)
             prev_h = decoder_initial_model.predict(z)
 
-            for i in G.TIMESTEPS:
+            for i in range(G.TIMESTEPS):
                 x_reco, prev_h = decoder.predict([x_true[0][i][0], z, prev_h])
                 X_reco.append(x_reco)
 
