@@ -140,7 +140,7 @@ def BuildVAE():
     decoder.summary()
     
     #まとめ
-    vae = Model(encoder_inputs, outputs, name='VAE')
+    vae = Model([encoder_inputs,decoder_inputs], outputs, name='VAE')
 
     # 損失関数をこのモデルに加える
     def loss(inputs, outputs):
