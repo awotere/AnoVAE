@@ -41,7 +41,7 @@ def BuildData(dir,min_val,max_val):
         Xr[i] = X[i:i + G.TIMESTEPS].T
 
         if i == 0:
-            Xr2[0] = (np.array([X_average]) + X[: G.TIMESTEPS -1]).T
+            Xr2[0] = (np.array([X_average]) + X[: G.TIMESTEPS]).T
             continue
 
         Xr2[i] = X[i + 1 : i + 1 + G.TIMESTEPS].T
