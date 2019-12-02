@@ -278,7 +278,7 @@ class AnoVAE:
 
         print("μと∑を取得します")
         encoder_layer = self.vae.get_layer("encoder")
-        encoder = Model(encoder_layer.input, encoder_layer.get_output_at(0))
+        encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
         mu_sigma = encoder.predict(X_train)
 
 
@@ -356,7 +356,7 @@ class AnoVAE:
 
         #######  運用エンコーダ  #######
         encoder_layer = self.vae.get_layer("encoder")
-        encoder = Model(encoder_layer.input, encoder_layer.get_output_at(0))
+        encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
 
         # (1, TIMESTEPS, 1) -> ([zμ, zσ^, z])
 
