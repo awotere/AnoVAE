@@ -277,8 +277,9 @@ class AnoVAE:
         import numpy as np
 
         print("μと∑を取得します")
-        encoder = Model(self.vae.input, self.vae.get_layer("encoder").get_output_at(0))
-        mu_sigma = encoder.predict([X_train,X_train2])
+        encoder_layer = self.vae.get_layer("encoder")
+        encoder = Model(encoder_layer.input, encoder_layer.get_output_at(0))
+        mu_sigma = encoder.predict(X_train)
 
 
         #μ  (4800,20)->(20)
