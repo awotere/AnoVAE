@@ -34,24 +34,16 @@ def BuildData(dir,min_val,max_val):
 
     #(サンプル数,timestep)の行列
     Xr = np.zeros((sample_size, G.TIMESTEPS))
-    Xr2 = np.zeros((sample_size, G.TIMESTEPS))
+    Xr2 = np.zeros((sample_size, 1))
 
     #timestep分スライスして格納
     for i in range(sample_size):
         Xr[i] = X[i:i + G.TIMESTEPS].T
-
-        if i == 0:
-            Xr2[0] = (np.array([X_average]) + X[: G.TIMESTEPS]).T
-            continue
-
-        Xr2[i] = X[i + 1 : i + 1 + G.TIMESTEPS].T
-
-
+        Xr2[i] = X[i]
 
 
     #kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
-    Xr2 = np.expand_dims(Xr2, axis=2)
 
     #内部処理用のデータセット
 
