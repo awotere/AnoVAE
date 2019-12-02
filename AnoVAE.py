@@ -107,7 +107,7 @@ class AnoVAE:
 
     # コンストラクタ
     def __init__(self):
-        self.vae = GV.BuildVAE()
+        self.vae = self.BuildVAE()
         return
 
     def BuildVAE(self):
