@@ -285,7 +285,7 @@ class AnoVAE:
 
         #μ  (4800,20)->(20)
         mu = mu_sigma[0]
-        #mu = np.average(mu,axis=0)
+        mu = np.average(mu,axis=0)
 
         #σ  (4800,20)
         sigma = np.exp(mu_sigma[1]/2)
