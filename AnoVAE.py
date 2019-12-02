@@ -188,22 +188,25 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
-        decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
+        # (None, 1, 1) <- 予測する波形の初期値
+        decoder_inputs = Input(shape=(1, 1), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,),name="input_z")
 
-        # (None, TIMESTEPS, Z_DIM) <- from z
-        overlay_x = RepeatVector(G.TIMESTEPS)(input_z)
+        # (None, 1, Z_DIM)
+        input_z = RepeatVector(1)(input_z)
 
-        # (None, TIMESTEPS, 1 + Z_DIM)
-        actual_input_x = concatenate([decoder_inputs, overlay_x], 2)
+        # (None, 1, 1 + Z_DIM)
+        actual_input_x = concatenate([decoder_inputs, input_z], 2)
+
+        # (None, TIMESTEPS, 1 + Z_DIM) <- from z
+        repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
 
         # zから初期状態hを決定
         # (None, Z_DIM)
         initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(input_z)
 
         # (None, TIMESTEPS, Z_DIM)
-        zd,_ = GRU(G.Z_DIM, return_sequences=True,return_state=True,name="GRU")(actual_input_x, initial_state=initial_h)
+        zd,_ = GRU(G.Z_DIM, return_sequences=True,return_state=True,name="GRU")(repeat_x, initial_state=initial_h)
 
         # (None, TIMESTEPS, 1)
         outputs = TimeDistributed(Dense(1, activation='sigmoid'),name="output_layer")(zd)
@@ -388,10 +391,15 @@ class AnoVAE:
         output = TimeDistributed(Dense(1, activation='sigmoid'))(output)
         # (1, 1, 1)
 
-        initial_state = decoder.get_layer(name="initial_state_layer")(input_z)
-
         decoder_initial_model = Model(input_z, initial_state)
         decoder = Model([decoder_input, input_z,h_input],[output, last_h])
+
+        decoder_layer = self.vae.get_layer(name="decoder")
+
+        decoder_input = decoder_layer.get_input_at(0)
+        input_z = decoder_layer.get_input_at(1)
+
+        decoder = Model([decoder_input,input_z], decoder_layer.get_output_at(0))
 
         print("運用decoderのモデルを作成しました")
         decoder.summary()
