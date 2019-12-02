@@ -265,8 +265,8 @@ class AnoVAE:
         # W保存
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_id{1}_ld{2}_b{3}".format(G.TIMESTEPS, G.INTERMIDIATE_DIM, G.Z_DIM, G.BATCH_SIZE))
 
-        weight_path = "./data/weight/{0}".format(name)
-        self.vae.save(weight_path)
+        weight_path = "./data/weight/{0}.h5".format(name)
+        self.vae.save(filepath=weight_path)
         print("weightを保存しました:\n{0}", weight_path)
 
         #mu,sigmaを求め、保存
@@ -287,18 +287,18 @@ class AnoVAE:
         sigma = np.exp(mu_sigma[1]/2)
 
         #追加
-        from sklearn.manifold import TSNE
+        #from sklearn.manifold import TSNE
 
-        tsne = TSNE(n_components=2)
-        mu = tsne.fit_transform(mu)
-        mu = np.average(mu, axis=0)
+        #tsne = TSNE(n_components=2)
+        #mu = tsne.fit_transform(mu)
+        #mu = np.average(mu, axis=0)
 
-        sigma = tsne.fit_transform(sigma)
+        #sigma = tsne.fit_transform(sigma)
 
         #∑=diag(σ)  (20,20)
         SIGMA = np.cov(sigma,rowvar=False)
 
-        np.savez("./data/mu_SIGMA/{0}".format(name),mu=mu,SIGMA=SIGMA)
+        np.savez("./data/mu_SIGMA/{0}.npz".format(name),mu=mu,SIGMA=SIGMA)
 
         self.true_mu = mu
         self.true_SIGMA = SIGMA
@@ -388,12 +388,15 @@ class AnoVAE:
 
         print("運用decoderのモデルを作成しました")
 
+        # predict
+
+        z_list = []
         X_reco = np.zeros()
 
         for x_true in zip(*[iter(X_true)]*G.TIMESTEPS):
             # z取得
             _,_,z = encoder.predict([x_true[0]])
-
+            z_list.append(z)
             prev_h = decoder_initial_model.predict(z)
 
             for i in G.TIMESTEPS:
@@ -414,10 +417,6 @@ class AnoVAE:
             for j in range(max(0, i - G.TIMESTEPS), i):
                 sum += abs(true[j] - X_reco[j])
             error.append(sum)
-
-        # zの取得
-
-        z_list = (encoder.predict(X_true))[2]
 
         from sklearn.manifold import TSNE
 
