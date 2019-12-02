@@ -414,7 +414,7 @@ class AnoVAE:
 
             #zは[1,25]
             z = np.reshape(z, (1,-1))
-            x_true =  np.reshape(x_true, (1,-1))
+            x_true =  np.reshape(x_true[0], (1,-1))
             x_reco = decoder.predict([x_true,z])
             X_reco += np.reshape(x_reco,(-1))
 
