@@ -355,8 +355,9 @@ class AnoVAE:
         from keras.layers import concatenate
 
         #######  運用エンコーダ  #######
+        encoder_layer = self.vae.get_layer("encoder")
+        encoder = Model(encoder_layer.input, encoder_layer.get_output_at(0))
 
-        encoder = Model(self.vae.input, self.vae.get_layer("encoder").get_output_at(0))
         # (1, TIMESTEPS, 1) -> ([zμ, zσ^, z])
 
         print("運用encoderのモデルを作成しました")
