@@ -146,7 +146,7 @@ class AnoVAE:
         from sklearn.preprocessing import MinMaxScaler
 
         # encoderの定義
-        # (None, TIMESTEPS, 1)
+        # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
         encoder_inputs = Input(shape=(G.TIMESTEPS, 1),name="encoder_inputs")
 
         # (None, Z_DIM) <- h
@@ -188,10 +188,10 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, TIMESTEPS, 1)
+        # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
         decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
 
-        # (None, TIMESTEPS, Z_DIM)
+        # (None, TIMESTEPS, Z_DIM) <- from z
         overlay_x = RepeatVector(G.TIMESTEPS)(z)
 
         # (None, TIMESTEPS, 1 + Z_DIM)
@@ -212,7 +212,7 @@ class AnoVAE:
         #decoder.summary()
 
         # まとめ
-        vae = Model(encoder_inputs, outputs, name='VAE')
+        vae = Model([encoder_inputs,decoder_inputs], outputs, name='VAE')
 
         # 損失関数をこのモデルに加える
         def loss(inputs, outputs):
@@ -246,7 +246,7 @@ class AnoVAE:
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
         # 学習データを作成
-        X_train = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        X_train,X_train2 = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
         print("Trainデータ読み込み完了")
 
         # コンパイル
@@ -254,7 +254,7 @@ class AnoVAE:
 
         # 学習
         from keras.callbacks import TensorBoard, EarlyStopping
-        self.vae.fit(X_train,
+        self.vae.fit([X_train,X_train2],
                      epochs=100,
                      batch_size=G.BATCH_SIZE,
                      shuffle=True,

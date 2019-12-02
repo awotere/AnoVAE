@@ -20,6 +20,7 @@ def BuildData(dir,min_val,max_val):
     #データ読み込み(全サンプル数)の配列
     X = np.loadtxt(dir,encoding = "utf-8-sig")
 
+    X_average = np.average(X)
     #最小値を0にして0-1に圧縮
 
     clamp = lambda x,min_val_a,max_val_a: min(max_val_a, max(x, min_val_a))
@@ -33,16 +34,34 @@ def BuildData(dir,min_val,max_val):
 
     #(サンプル数,timestep)の行列
     Xr = np.zeros((sample_size, G.TIMESTEPS))
-    
+    Xr2 = np.zeros((sample_size, G.TIMESTEPS))
+
     #timestep分スライスして格納
     for i in range(sample_size):
         Xr[i] = X[i:i + G.TIMESTEPS].T
 
+        if i == 0:
+            Xr2[0] = (np.array([X_average]) + X[: G.TIMESTEPS -1]).T
+            continue
+
+        Xr2[i] = X[i + 1 : i + 1 + G.TIMESTEPS].T
+
+
+
+
     #kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
+    Xr2 = np.expand_dims(Xr2, axis=2)
 
-    return Xr
+    #内部処理用のデータセット
 
+    return Xr,Xr2
+
+
+
+
+'''
+非推奨
 def BuildVAE():
     """
     入力(input)
@@ -164,23 +183,4 @@ def BuildVAE():
 
     return vae
 
-
-if __name__ == "__main__":
-
-    print("="*20+"preparating the data..."+"="*20)
-
-    x_train = BuildData("./data/BPF7ch(learn_data).csv",G.DATA_MIN,G.DATA_MAX)
-    print("="*20+"summary of this model"+"="*20)
-    vae = BuildVAE()
-
-    vae.compile(optimizer="adam")
-    # 学習
-    vae.fit(x_train,
-                epochs=100,
-                batch_size=64,
-                shuffle=True,
-                validation_split=0.1,
-                callbacks=[TensorBoard(log_dir="./gru_vae/"),EarlyStopping(patience=10)])
-    vae.save('./data/weight/.h5')
-    vae.s
-    print("学習終わり")
+'''
