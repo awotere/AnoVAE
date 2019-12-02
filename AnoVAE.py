@@ -190,9 +190,10 @@ class AnoVAE:
 
         # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
         decoder_inputs = Input(shape=(G.TIMESTEPS, 1), name='decoder_inputs')
+        input_z = Input(shape=(G.Z_DIM,1))
 
         # (None, TIMESTEPS, Z_DIM) <- from z
-        overlay_x = RepeatVector(G.TIMESTEPS)(z)
+        overlay_x = RepeatVector(G.TIMESTEPS)(input_z)
 
         # (None, TIMESTEPS, 1 + Z_DIM)
         actual_input_x = concatenate([decoder_inputs, overlay_x], 2)
@@ -207,11 +208,12 @@ class AnoVAE:
         # (None, TIMESTEPS, 1)
         outputs = TimeDistributed(Dense(1, activation='sigmoid'),name="output_layer")(zd)
 
-        #decoder = Model(decoder_inputs, outputs, name='decoder')
-        #print("decoderの構成")
-        #decoder.summary()
+        decoder = Model([decoder_inputs,input_z], outputs, name='decoder')
+        print("decoderの構成")
+        decoder.summary()
 
         # まとめ
+        outputs = decoder([decoder_inputs,encoder(encoder_inputs)[2]])
         vae = Model([encoder_inputs,decoder_inputs], outputs, name='VAE')
 
         # 損失関数をこのモデルに加える
