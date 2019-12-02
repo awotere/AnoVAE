@@ -375,7 +375,7 @@ class AnoVAE:
         # (1, 1, 1 + Z_DIM)
 
         h_input = Input(shape=(G.Z_DIM,)) #h
-        # (1, 1, Z_DIM)
+        # (1, Z_DIM)
 
         decoder = self.vae.get_layer(name="decoder")
         output, last_h = decoder.get_layer(name="GRU")(actual_input_x,initial_state=h_input)
@@ -384,7 +384,7 @@ class AnoVAE:
         output = decoder.get_layer(name="output_layer")(output)
         # (1, 1, 1)
 
-        initial_state = decoder.get_layer(name="initial_state_layer")(input_z)
+        initial_state = TimeDistributed(Dense(1, activation='sigmoid'))(input_z)
 
         decoder_initial_model = Model(input_z, initial_state)
         decoder = Model([decoder_input, input_z,h_input],[output, last_h])
