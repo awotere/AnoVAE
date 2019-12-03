@@ -402,7 +402,7 @@ class AnoVAE:
         _, _, z_list = self.encoder.predict(X_true)
 
         #reconstract
-        for x_true,z in zip(X_true[G.TIMESTEPS::G.TIMESTEPS],z_list[G.TIMESTEPS::G.TIMESTEPS]):
+        for x_true,z in zip(X_true[G.TIMESTEPS-1::G.TIMESTEPS],z_list[G.TIMESTEPS-1::G.TIMESTEPS]):
 
             #zは[1,25]
             z = np.reshape(z, (1,-1))
@@ -415,7 +415,6 @@ class AnoVAE:
 
         # リストに変換
         true = TestData2List(X_true)
-
 
         # エラーレート計算
         error = []
