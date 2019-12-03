@@ -40,7 +40,7 @@ def BuildData(dir, min_val, max_val):
             #Xr[1]: [0, 0, 0, ... , X[0], X[1]] shape=(TIMESTEP)
             #こんな配列
             zero_array = np.zeros(shape=(G.TIMESTEPS-i-1))
-            Xr[i] = np.hstack(zero_array,X[:i].T)
+            Xr[i] = np.hstack((zero_array,X[:i].T))
         else:
             Xr[i] = X[i:i + G.TIMESTEPS].T
 
