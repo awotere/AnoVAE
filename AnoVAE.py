@@ -409,7 +409,7 @@ class AnoVAE:
             x_true =  np.reshape(x_true[-1], (1,1))
             x_reco = self.decoder.predict([x_true,z])
 
-            X_reco = np.hstack((X_reco,np.reshape(x_reco,newshape=(-1))[::-1]))
+            X_reco = np.hstack((X_reco,np.reshape(x_reco,newshape=(-1))))
 
         print("再構成完了しました")
 
@@ -431,8 +431,8 @@ class AnoVAE:
         #マハラノビス距離の計算
         from scipy.spatial import distance
 
-        dm = []
-        for z in z_list:
+        dm = [0]*G.TIMESTEPS
+        for z in z_list[G.TIMESTEPS:]:
             dm.append(distance.mahalanobis(z,self.true_mu,np.linalg.inv(self.true_SIGMA)))
 
         print("true,reco,error,dmデータ作成完了しました")
