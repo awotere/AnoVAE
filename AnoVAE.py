@@ -66,7 +66,7 @@ def TestData2List(x):
     sample_size = x.shape[0]
     timesteps = x.shape[1]
     #データは一次元なので(sample_size,timesteps,1) -> (sample_size,timesteps)とする
-    x.reshape(shape=(sample_size,timesteps))
+    np.reshape(x,newshape=(sample_size,timesteps))
 
     # x[0]  : [0    , 0     , ... , 0    , X[0]]
     # x[1]  : [0    , 0     , ... , X[0] , X[1]]
