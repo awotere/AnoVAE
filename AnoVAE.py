@@ -325,8 +325,11 @@ class AnoVAE:
         #∑=diag(σ)  (20,20)
         SIGMA = np.cov(sigma,rowvar=False)
 
-        np.savez("./data/mu_SIGMA/{0}.npz".format(name),mu=mu,SIGMA=SIGMA)
+        path = "./data/mu_SIGMA/{0}.npz".format(name)
+        np.savez(path,mu=mu,SIGMA=SIGMA)
+        print("μΣを保存しました:\n{0}".format(path))
 
+        print("Train終了")
         self.true_mu = mu
         self.true_SIGMA = SIGMA
         self.load_weight_flag = True
