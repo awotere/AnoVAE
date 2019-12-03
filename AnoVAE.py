@@ -384,11 +384,12 @@ class AnoVAE:
             if count > max_len/10:
                 num_space += 1
                 print("再構成しています... progress [{0}{1}]\r".format("■"*num_space,"＿"*(10-num_space)))
+                count = 0
 
             # zは[1,25]
             z = np.reshape(z, (1, -1))
             x = np.reshape(x, (1, -1))
-            np.append(X_reco,self.decoder.predict([x,z])[0])
+            X_reco = np.append(X_reco,self.decoder.predict([x,z])[0])
             count += 1
 
 
