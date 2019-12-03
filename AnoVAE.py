@@ -42,7 +42,7 @@ def BuildData(dir, min_val, max_val):
             zero_array = np.zeros(shape=(G.TIMESTEPS-i-1))
             Xr[i] = np.hstack((zero_array,X[:i+1]))
         else:
-            Xr[i] = X[i - G.TIMESTEPS-1:i+1]
+            Xr[i] = X[i - G.TIMESTEPS + 1:i+1]
 
     # kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
