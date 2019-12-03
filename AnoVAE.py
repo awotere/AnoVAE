@@ -403,7 +403,7 @@ class AnoVAE:
 
             reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
         # リストに変換
-        true_view = np.reshape(X_true2,newshape=G.TIMESTEPS)
+        true_view = X_true2
 
         offset = int(G.TIMESTEPS/2)
 
