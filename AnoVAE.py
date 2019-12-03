@@ -308,10 +308,12 @@ class AnoVAE:
 
         #μ  (4800,20)->(20)
         mu = mu_sigma[0]
+        mu = mu[G.TIMESTEPS:]
         mu = np.average(mu,axis=0)
 
         #σ  (4800,20)
         sigma = np.exp(mu_sigma[1]/2)
+        sigma = sigma[G.TIMESTEPS:]
 
         #追加
         #from sklearn.manifold import TSNE
@@ -400,13 +402,13 @@ class AnoVAE:
         _, _, z_list = self.encoder.predict(X_true)
 
         #reconstract
-        for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
+        for x_true,z in zip(X_true[G.TIMESTEPS::G.TIMESTEPS],z_list[G.TIMESTEPS::G.TIMESTEPS]):
 
             #zは[1,25]
             z = np.reshape(z, (1,-1))
             x_true =  np.reshape(x_true[0], (1,-1))
             x_reco = self.decoder.predict([x_true,z])
-            X_reco = np.hstack((X_reco,np.reshape(x_reco,(-1))))
+            X_reco = np.hstack((X_reco,np.fliplr(np.reshape(x_reco,(-1)))))
 
         print("再構成完了しました")
 
@@ -424,7 +426,7 @@ class AnoVAE:
             error.append(sum)
 
         # z_listをt_SNEを用いて描画
-        Show_t_SNE(z_list)  # z
+        #Show_t_SNE(z_list)  # z
 
         #マハラノビス距離の計算
         from scipy.spatial import distance
