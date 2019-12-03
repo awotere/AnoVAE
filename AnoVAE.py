@@ -25,7 +25,7 @@ def BuildData(dir, min_val, max_val):
     X = np.array(list(map(lambda x: clamp((x - min_val) / (max_val - min_val), 0, 1), X)))
 
     # 一次元配列から二次元行列に変換(None, 1)
-    X = X.reshape(-1, 1)
+    X = np.reshape(X,newshape=(-1))
 
     # 全サンプル数(入力csvのデータ数)
     sample_size = X.shape[0]
@@ -40,14 +40,15 @@ def BuildData(dir, min_val, max_val):
             #Xr[1]: [0, 0, 0, ... , X[0], X[1]] shape=(TIMESTEP)
             #こんな配列
             zero_array = np.zeros(shape=(G.TIMESTEPS-i-1))
-            Xr[i] = np.hstack((zero_array,X[:i+1].T))
+            Xr[i] = np.hstack((zero_array,X[:i+1]))
         else:
-            Xr[i] = X[i:i + G.TIMESTEPS].T
+            Xr[i] = X[i:i + G.TIMESTEPS]
 
     # kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
 
     # 内部処理用のデータセット(初期値のこと)がX
+    np.reshape(X,newshape=(-1,1))
 
     return Xr, X
 
