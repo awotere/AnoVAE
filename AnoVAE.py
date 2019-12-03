@@ -408,7 +408,7 @@ class AnoVAE:
 
         # 再構成後の再構成後のマンハッタン距離
         error = [0]*offset
-        for x_true,x_reco in zip(X_true[G.TIMESTEPS-1:],X_reco[G.TIMESTEPS-1:]):
+        for x_true,x_reco in zip(X_true2[G.TIMESTEPS-1:],X_reco[G.TIMESTEPS-1:]):
 
             x_true = np.reshape(x_true,newshape=G.TIMESTEPS)
             x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
