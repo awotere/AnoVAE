@@ -400,13 +400,13 @@ class AnoVAE:
         _, _, z_list = self.encoder.predict(X_true)
 
         #reconstract
-        for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
+        for x_true,z in zip(X_true[G.TIMESTEPS::G.TIMESTEPS],z_list[G.TIMESTEPS::G.TIMESTEPS]):
 
             #zは[1,25]
             z = np.reshape(z, (1,-1))
             x_true =  np.reshape(x_true[0], (1,-1))
             x_reco = self.decoder.predict([x_true,z])
-            X_reco = np.hstack((X_reco,np.reshape(x_reco,(-1))))
+            X_reco = np.hstack((X_reco,np.fliplr(np.reshape(x_reco,(-1)))))
 
         print("再構成完了しました")
 
