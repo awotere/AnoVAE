@@ -60,7 +60,7 @@ def GetFilePathFromDialog(file_types):
 
     return file
 
-
+''' 非推奨
 def TestData2List(x):
 
     sample_size = x.shape[0]
@@ -74,36 +74,35 @@ def TestData2List(x):
     # x[-1] : [X[-t],X[-t+1], ... , X[-2], X[-1]]
 
     return x[:,-1]
-
+'''
 
 def ShowGlaph(t, r, e,dm):
     import matplotlib.pyplot as plt
     plt.subplot(3, 1, 1)
     plt.ylabel("Value")
     #plt.xlabel("time")
-    plt.legend()
     plt.ylim(0, 1)
 
     plt.plot(range(len(t)), t, label="original")
     plt.plot(range(len(r)), r, label="reconstructed")
-
+    plt.legend()
 
     plt.subplot(3, 1, 2)
     plt.ylabel("Error Rate")
     #plt.xlabel("time")
     # plt.ylim(0,10)
-    plt.legend()
 
-    plt.plot(range(len(e)), e, label="ErrorRate")
+    plt.plot(range(len(e)), e, label="Manhattan distance")
+    plt.legend()
 
 
     plt.subplot(3, 1, 3)
     plt.ylabel("Mahalanobis Distance")
     plt.xlabel("time")
     # plt.ylim(0,10)
-    plt.legend()
 
     plt.plot(range(len(dm)), dm, label="Mahalanobis Distance")
+    plt.legend()
 
     plt.show()
 
@@ -365,34 +364,9 @@ class AnoVAE:
             path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
         # テストデータセット作成
-        X_true,_ = BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
+        X_true,X_true2 = BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
 
         print("テストデータを読み込みました:\n{0}".format(path))
-
-        #
-        from keras.models import Model
-
-        '''
-        #######  運用エンコーダ  #######
-        encoder_layer = self.vae.get_layer("encoder")
-        encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
-
-        # (1, TIMESTEPS, 1) -> ([zμ, zσ^, z])
-
-        print("運用encoderのモデルを作成しました")
-
-        #######  運用デコーダ  #######
-
-        decoder_layer = self.vae.get_layer(name="decoder")
-        decoder_input = decoder_layer.get_layer(name="decoder_inputs").get_input_at(0)
-        input_z = decoder_layer.get_layer(name="input_z").get_input_at(0)
-
-        decoder = Model([decoder_input,input_z],decoder_layer.get_output_at(0))
-        print("運用decoderのモデルを作成しました")
-        decoder.summary()
-        '''
-
-        # ([x, z]) -> (x)
 
         # predict
 
@@ -401,35 +375,54 @@ class AnoVAE:
         # z取得
         _, _, z_list = self.encoder.predict(X_true)
 
+        # X_reco取得
+        for x,z in zip(X_true2,z_list):
+            # zは[1,25]
+            z = np.reshape(z, (1, -1))
+            np.append(X_reco,self.decoder.predict([x,z]))
+
+
+        '''
         #reconstract
-        for x_true,z in zip(X_true[G.TIMESTEPS-1::G.TIMESTEPS],z_list[G.TIMESTEPS-1::G.TIMESTEPS]):
+        for x_true,z in zip(X_true2[G.TIMESTEPS-1::G.TIMESTEPS],z_list[G.TIMESTEPS-1::G.TIMESTEPS]):
 
             #zは[1,25]
             z = np.reshape(z, (1,-1))
-            x_true =  np.reshape(x_true[-1], (1,1))
             x_reco = self.decoder.predict([x_true,z])
 
             X_reco = np.hstack((X_reco,np.reshape(x_reco,newshape=(-1))))
+        '''
 
         print("再構成完了しました")
 
+        reco_view = np.array([])
+        # 表示用のX_reco -> reco
+        for x_reco in X_reco[G.TIMESTEPS - 1::G.TIMESTEPS]:
+            x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
+
+            reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
         # リストに変換
-        true = TestData2List(X_true)
+        true_view = np.reshape(X_true2,newshape=G.TIMESTEPS)
 
         offset = int(G.TIMESTEPS/2)
-        # エラーレート計算
-        error = [0]*offset
-        for i in range(len(true)-offset):
 
-            sum = 0
-            for j in range(max(0, i - G.TIMESTEPS), i):
-                sum += abs(true[j] - X_reco[j])
-            error.append(sum)
+        # 再構成後の再構成後のマンハッタン距離
+        error = [0]*offset
+        for x_true,x_reco in zip(X_true[G.TIMESTEPS-1:],X_reco[G.TIMESTEPS-1:]):
+
+            x_true = np.reshape(x_true,newshape=G.TIMESTEPS)
+            x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
+
+            d = 0
+            for t,r in zip(x_true,x_reco):
+                d += abs(t - r)
+            error.append(d)
+        error += [0] * offset
 
         # z_listをt_SNEを用いて描画
         #Show_t_SNE(z_list)  # z
 
-        #マハラノビス距離の計算
+        #マハラノビス距離dm
         from scipy.spatial import distance
 
         dm = [0]*int(G.TIMESTEPS/2)
@@ -439,7 +432,7 @@ class AnoVAE:
 
         print("true,reco,error,dmデータ作成完了しました")
 
-        return true, X_reco, error ,dm
+        return true_view, reco_view, error ,dm
 
     def LoadMuSIGMA(self):
 
