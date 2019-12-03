@@ -16,6 +16,46 @@ root.geometry("0x0")
 root.overrideredirect(1)
 root.withdraw()
 
+def BuildData(dir, min_val, max_val):
+    # データ読み込み(全サンプル数)の配列
+    X = np.loadtxt(dir, encoding="utf-8-sig")
+
+    X_average = np.average(X)
+    # 最小値を0にして0-1に圧縮
+
+    clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
+    X = np.array(list(map(lambda x: clamp((x - min_val) / (max_val - min_val), 0, 1), X)))
+
+    # 一次元配列から二次元行列に変換(None, 1)
+    X = X.reshape(-1, 1)
+
+    # 全サンプル数(入力csvのデータ数)
+    sample_size = X.shape[0]
+
+    # (サンプル数,timestep)の行列
+    Xr = np.zeros(shape=(sample_size, G.TIMESTEPS))
+    Xr2 = np.zeros(shape=(sample_size, 1))
+
+    # timestep分スライスして格納
+    for i in range(sample_size):
+        if i < G.TIMESTEPS - 1: #(0~)
+            #Xr[0]: [0, 0, 0, ... , 0   , X[0]] shape=(TIMESTEP)
+            #Xr[1]: [0, 0, 0, ... , X[0], X[1]] shape=(TIMESTEP)
+            #こんな配列
+            zero_array = np.zeros(shape=(G.TIMESTEPS-i-1))
+            Xr[i] = np.hstack(zero_array,X[:i].T)
+        else:
+            Xr[i] = X[i:i + G.TIMESTEPS].T
+
+        Xr2[i] = X[i]
+
+    # kerasに渡す形(sample,timestep,features)に変換
+    Xr = np.expand_dims(Xr, axis=2)
+
+    # 内部処理用のデータセット
+
+    return Xr, Xr2
+
 
 def GetFilePathFromDialog(file_types):
     # ファイル選択ダイアログの表示
@@ -82,19 +122,13 @@ def Show_t_SNE(X):
     plt.show()
     return
 
-def MahalanobisDistance(mu,SIGMA,z):
-    # d = √(z-μ)T∑(z-μ)
-    z_mu = z - mu
-    inv_SIGMA = np.linalg.inv(SIGMA)
-    x = np.dot(z_mu.T,inv_SIGMA)
-
-    return np.sqrt(np.dot(x, z_mu))
-
 #########################    AnoVAE    ############################
 
 class AnoVAE:
     # メンバ変数
     vae = None
+    encoder = None
+    decoder = None
 
     load_weight_flag = False
     load_muSIGMA_flag = False
@@ -107,7 +141,7 @@ class AnoVAE:
 
     # コンストラクタ
     def __init__(self):
-        self.vae = self.BuildVAE()
+        self.vae, self.encoder, self.decoder = self.BuildVAE()
         return
 
     def BuildVAE(self):
@@ -131,19 +165,11 @@ class AnoVAE:
 
         # LATENT_DIM = G.LATENT_DIM
 
-        import keras.backend as K
-        import math
-        import os
-        import numpy as np
-        from keras.layers import Input, InputLayer, Dense, RepeatVector, Lambda, TimeDistributed
+        from keras.layers import Input, Dense, RepeatVector, Lambda, TimeDistributed
         # from keras.layers import GRU
         from keras.layers import CuDNNGRU as GRU  # GPU用
-        from keras.models import Model, Sequential
-        from keras.callbacks import TensorBoard, EarlyStopping
-        from keras.optimizers import adam
+        from keras.models import Model
         from keras import backend as K
-
-        from sklearn.preprocessing import MinMaxScaler
 
         # encoderの定義
         # (None, TIMESTEPS, 1) <- TIMESTEPS分の波形データ
@@ -182,6 +208,7 @@ class AnoVAE:
 
         print("encoderの構成")
         encoder.summary()
+
         # encoder部分は入力を受けて平均、分散、そこからランダムサンプリングしたものの3つを返す
 
         # decoderの定義
@@ -203,7 +230,7 @@ class AnoVAE:
         initial_h = Dense(G.Z_DIM, activation="tanh",name="initial_state_layer")(input_z)
 
         # (None, TIMESTEPS, Z_DIM)
-        zd = GRU(G.Z_DIM, return_sequences=True, name="GRU")(repeat_x, initial_state=initial_h)
+        zd = GRU(G.Z_DIM, return_sequences=True, name="decoder_GRU")(repeat_x, initial_state=initial_h)
 
         # (None, TIMESTEPS, 1)
         outputs = TimeDistributed(Dense(1, activation='sigmoid'),name="output_layer")(zd)
@@ -236,7 +263,7 @@ class AnoVAE:
         print("vaeの構成")
         vae.summary()
 
-        return vae
+        return vae, encoder, decoder
 
 
     # メンバ関数
@@ -248,7 +275,7 @@ class AnoVAE:
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
         # 学習データを作成
-        X_train,X_train2 = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        X_train,X_train2 = BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
         print("Trainデータ読み込み完了")
 
         # コンパイル
@@ -265,7 +292,7 @@ class AnoVAE:
         print("学習終了!")
 
         # W保存
-        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_id{1}_ld{2}_b{3}".format(G.TIMESTEPS, G.INTERMIDIATE_DIM, G.Z_DIM, G.BATCH_SIZE))
+        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_zd{1}_b{2}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE))
 
         weight_path = "./data/weight/{0}.h5".format(name)
         self.vae.save_weights(filepath=weight_path)
@@ -337,24 +364,14 @@ class AnoVAE:
             path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
         # テストデータセット作成
-        X_true,_ = GV.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
+        X_true,_ = BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit);
 
         print("テストデータを読み込みました:\n{0}".format(path))
 
         #
-        import keras.backend as K
-        import math
-        import os
-        import numpy as np
-        from keras.layers import Input, InputLayer, Dense, RepeatVector, Lambda, TimeDistributed
-        # from keras.layers import GRU
-        from keras.layers import CuDNNGRU as GRU  # GPU用
-        from keras.models import Model, Sequential
-        from keras.callbacks import TensorBoard, EarlyStopping
-        from keras.optimizers import adam
-        from keras import backend as K
-        from keras.layers import concatenate
+        from keras.models import Model
 
+        '''
         #######  運用エンコーダ  #######
         encoder_layer = self.vae.get_layer("encoder")
         encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
@@ -362,38 +379,9 @@ class AnoVAE:
         # (1, TIMESTEPS, 1) -> ([zμ, zσ^, z])
 
         print("運用encoderのモデルを作成しました")
-        encoder.summary()
 
         #######  運用デコーダ  #######
 
-        '''
-        decoder_input = Input(shape=(1, 1)) #data
-        # (1, 1, 1)
-
-        input_z = Input(shape=(G.Z_DIM,)) #z
-        # (1, Z_DIM)
-
-        overlay_x = RepeatVector(1)(input_z)
-        # (1, 1, Z_DIM)
-
-        actual_input_x = concatenate([decoder_input, overlay_x], 2) #data + z
-        # (1, 1, 1 + Z_DIM)
-        
-        repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
-        # (1, TIMESTEPS, 1 + Z_DIM)
-        
-        decoder_layer = self.vae.get_layer(name="decoder")
-        init_h = decoder_layer.get_layer(name="initial_state_layer")(input_z)
-        # (1, Z_DIM)
-
-        output = decoder_layer.get_layer(name="GRU")(actual_input_x, initial_state=init_h)
-        # (1, TIMESTEPS, Z_DIM)
-
-        output = TimeDistributed(Dense(1, activation='sigmoid'))(output)
-        # (1, TIMESTEPS, 1)
-
-        decoder = Model([decoder_input, input_z],output)
-        '''
         decoder_layer = self.vae.get_layer(name="decoder")
         decoder_input = decoder_layer.get_layer(name="decoder_inputs").get_input_at(0)
         input_z = decoder_layer.get_layer(name="input_z").get_input_at(0)
@@ -401,13 +389,16 @@ class AnoVAE:
         decoder = Model([decoder_input,input_z],decoder_layer.get_output_at(0))
         print("運用decoderのモデルを作成しました")
         decoder.summary()
+        '''
+
+        # ([x, z]) -> (x)
 
         # predict
 
         X_reco = np.array([])
 
         # z取得
-        _, _, z_list = encoder.predict(X_true)
+        _, _, z_list = self.encoder.predict(X_true)
 
         #reconstract
         for x_true,z in zip(X_true[::G.TIMESTEPS],z_list[::G.TIMESTEPS]):
@@ -415,7 +406,7 @@ class AnoVAE:
             #zは[1,25]
             z = np.reshape(z, (1,-1))
             x_true =  np.reshape(x_true[0], (1,-1))
-            x_reco = decoder.predict([x_true,z])
+            x_reco = self.decoder.predict([x_true,z])
             X_reco = np.hstack((X_reco,np.reshape(x_reco,(-1))))
 
         print("再構成完了しました")
