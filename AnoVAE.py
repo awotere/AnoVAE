@@ -416,9 +416,10 @@ class AnoVAE:
         # リストに変換
         true = TestData2List(X_true)
 
+        offset = int(G.TIMESTEPS/2)
         # エラーレート計算
-        error = []
-        for i in range(len(true)):
+        error = [0]*offset
+        for i in range(len(true)-offset):
 
             sum = 0
             for j in range(max(0, i - G.TIMESTEPS), i):
@@ -431,9 +432,10 @@ class AnoVAE:
         #マハラノビス距離の計算
         from scipy.spatial import distance
 
-        dm = [0]*G.TIMESTEPS
+        dm = [0]*int(G.TIMESTEPS/2)
         for z in z_list[G.TIMESTEPS:]:
             dm.append(distance.mahalanobis(z,self.true_mu,np.linalg.inv(self.true_SIGMA)))
+        dm += [0]*offset
 
         print("true,reco,error,dmデータ作成完了しました")
 
