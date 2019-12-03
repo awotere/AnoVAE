@@ -390,6 +390,7 @@ class AnoVAE:
             z = np.reshape(z, (1, -1))
             x = np.reshape(x, (1, -1))
             x_reco = self.decoder.predict([x,z])
+            x_reco = np.reshape(x_reco,newshape=(1,G.TIMESTEPS))
             X_reco = np.append(X_reco,x_reco,axis=0)
             count += 1
 
