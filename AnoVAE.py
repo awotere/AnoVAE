@@ -376,23 +376,21 @@ class AnoVAE:
         _, _, z_list = self.encoder.predict(X_true)
 
         # X_reco取得
+        count = 0
+        num_space = 0
+        max_len = len(X_true2)
         for x,z in zip(X_true2,z_list):
+
+            if count > max_len/10:
+                num_space += 1
+                print("再構成しています... progress [{0}{1}]\r".format("■"*num_space,"＿"*(10-num_space)))
+
             # zは[1,25]
             z = np.reshape(z, (1, -1))
             x = np.reshape(x, (1, -1))
-            np.append(X_reco,self.decoder.predict([x,z]))
+            np.append(X_reco,self.decoder.predict([x,z])[0])
+            count += 1
 
-
-        '''
-        #reconstract
-        for x_true,z in zip(X_true2[G.TIMESTEPS-1::G.TIMESTEPS],z_list[G.TIMESTEPS-1::G.TIMESTEPS]):
-
-            #zは[1,25]
-            z = np.reshape(z, (1,-1))
-            x_reco = self.decoder.predict([x_true,z])
-
-            X_reco = np.hstack((X_reco,np.reshape(x_reco,newshape=(-1))))
-        '''
 
         print("再構成完了しました")
 
@@ -403,7 +401,7 @@ class AnoVAE:
 
             reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
         # リストに変換
-        true_view = X_true2
+        true_view = list(X_true2)
 
         offset = int(G.TIMESTEPS/2)
 
