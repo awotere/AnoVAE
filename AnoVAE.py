@@ -370,7 +370,7 @@ class AnoVAE:
 
         # predict
 
-        X_reco = np.array([])
+        X_reco = np.empty(shape=(0,G.TIMESTEPS))
 
         # z取得
         _, _, z_list = self.encoder.predict(X_true)
