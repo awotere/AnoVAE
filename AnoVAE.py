@@ -20,9 +20,7 @@ def BuildData(dir, min_val, max_val):
     # データ読み込み(全サンプル数)の配列
     X = np.loadtxt(dir, encoding="utf-8-sig")
 
-    X_average = np.average(X)
     # 最小値を0にして0-1に圧縮
-
     clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
     X = np.array(list(map(lambda x: clamp((x - min_val) / (max_val - min_val), 0, 1), X)))
 
@@ -34,7 +32,6 @@ def BuildData(dir, min_val, max_val):
 
     # (サンプル数,timestep)の行列
     Xr = np.zeros(shape=(sample_size, G.TIMESTEPS))
-    Xr2 = np.zeros(shape=(sample_size, 1))
 
     # timestep分スライスして格納
     for i in range(sample_size):
@@ -47,14 +44,12 @@ def BuildData(dir, min_val, max_val):
         else:
             Xr[i] = X[i:i + G.TIMESTEPS].T
 
-        Xr2[i] = X[i]
-
     # kerasに渡す形(sample,timestep,features)に変換
     Xr = np.expand_dims(Xr, axis=2)
 
-    # 内部処理用のデータセット
+    # 内部処理用のデータセット(初期値のこと)がX
 
-    return Xr, Xr2
+    return Xr, X
 
 
 def GetFilePathFromDialog(file_types):
@@ -66,18 +61,18 @@ def GetFilePathFromDialog(file_types):
 
 
 def TestData2List(x):
-    list = []
 
     sample_size = x.shape[0]
-    num_timestep = x.shape[1]
+    timesteps = x.shape[1]
+    #データは一次元なので(sample_size,timesteps,1) -> (sample_size,timesteps)とする
+    x.reshape(shape=(sample_size,timesteps))
 
-    for x_pos in range(0, sample_size - num_timestep, num_timestep):
-        list += [x[x_pos][y] for y in range(num_timestep)]
-    else:
-        mod = sample_size % num_timestep
-        list += [x[x_pos][y] for y in range(mod)]
+    # x[0]  : [0    , 0     , ... , 0    , X[0]]
+    # x[1]  : [0    , 0     , ... , X[0] , X[1]]
+    #  :    :    :       :    ＼     :       :
+    # x[-1] : [X[-t],X[-t+1], ... , X[-2], X[-1]]
 
-    return list
+    return x[:,-1]
 
 
 def ShowGlaph(t, r, e,dm):
@@ -176,7 +171,7 @@ class AnoVAE:
         encoder_inputs = Input(shape=(G.TIMESTEPS, 1),name="encoder_inputs")
 
         # (None, Z_DIM) <- h
-        _, h = GRU(G.Z_DIM, return_state=True, name="encoder_GRU")(encoder_inputs)
+        _, h = GRU(G.Z_DIM, return_state=True,go_backwards=True, name="encoder_GRU")(encoder_inputs)
 
         # (None, Z_DIM) <- μ
         z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
