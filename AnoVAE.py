@@ -379,6 +379,7 @@ class AnoVAE:
         for x,z in zip(X_true2,z_list):
             # zは[1,25]
             z = np.reshape(z, (1, -1))
+            x = np.reshape(x, (1, -1))
             np.append(X_reco,self.decoder.predict([x,z]))
 
 
