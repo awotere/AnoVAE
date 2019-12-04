@@ -133,6 +133,8 @@ class AnoVAE:
 
     true_mu = None
     true_SIGMA = None
+    true_mu_list = None
+    true_sigma_list = None
 
     # コンストラクタ
     def __init__(self):
@@ -177,10 +179,10 @@ class AnoVAE:
         h = concatenate([h_forw,h_back],axis=1)
 
         # (None, Z_DIM) <- μ
-        z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
+        z_mean = Dense(G.Z_DIM,activation="linear", name='z_mean')(h)  # z_meanを出力
 
         # (None, Z_DIM) <- σ^ (σ = exp(log(σ^/2)))
-        z_log_var = Dense(G.Z_DIM, name='z_log_var')(h)  # z_sigmaを出力
+        z_log_var = Dense(G.Z_DIM,activation="linear", name='z_log_var')(h)  # z_sigmaを出力
 
         #z導出
         def sampling(args):
@@ -194,7 +196,7 @@ class AnoVAE:
             dim = K.int_shape(z_mean)[1]
             # by default, random_normal has mean=0 and std=1.0
             epsilon = K.random_normal(shape=(batch, dim))
-            # K.exp(0.5 * z_log_var)が分散に標準偏差になっている
+            # K.exp(0.5 * z_log_var)が標準偏差になっている
             # いきなり標準偏差を求めてしまっても構わないが、負を許容してしまうのでこのようなトリックを用いている
             return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
@@ -320,19 +322,19 @@ class AnoVAE:
 
         #μ  (4800,25)->(25)
         mu = mu_sigma[0]
-        mu = mu[G.TIMESTEPS:]
-        mu = np.average(mu,axis=0)
+        mu_list = mu[G.TIMESTEPS:]
+        mu = np.average(mu_list,axis=0)
 
-        #σ  (4800,25)->(25)
-        sigma = np.exp(mu_sigma[1]/2)
-        sigma = sigma[G.TIMESTEPS:]
-        sigma = np.average(sigma,axis=0)
+        #σ^2  (4800,25)->(25)
+        sigma = np.exp(mu_sigma[1])
+        sigma_list = sigma[G.TIMESTEPS:]
+        sigma = np.average(sigma_list,axis=0)
 
-        #∑=diag(σ)  (25,25)
+        #∑=diag(σ^2)  (25,25)
         SIGMA = np.diag(sigma)
 
         path = "./data/mu_SIGMA/{0}.npz".format(name)
-        np.savez(path,mu=mu,SIGMA=SIGMA)
+        np.savez(path,mu=mu,SIGMA=SIGMA,mu_list=mu_list,sigma_list=sigma_list)
         print("μΣを保存しました:\n{0}".format(path))
 
         print("Train終了")
@@ -377,7 +379,7 @@ class AnoVAE:
 
         X_reco = np.empty(shape=(0,G.TIMESTEPS))
 
-        # z取得
+        # mu,取得
         mu_list, _, z_list = self.encoder.predict(X_true)
 
         # X_reco取得
@@ -453,6 +455,9 @@ class AnoVAE:
         npz = np.load(path)
         self.true_mu = npz["mu"]
         self.true_SIGMA = npz["SIGMA"]
+        self.true_mu_list = npz["mu_list"]
+        self.true_sigma_list = npz["sigma_list"]
+
         self.load_muSIGMA_flag = True
 
         return
