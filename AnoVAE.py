@@ -174,7 +174,7 @@ class AnoVAE:
         _, h_forw = GRU(G.Z_DIM, return_state=True,name="encoder_GRU_forward")(encoder_inputs)
         _, h_back = GRU(G.Z_DIM, return_state=True,go_backwards=True, name="encoder_GRU_backward")(encoder_inputs)
 
-        h = Concatenate(axis=1)([h_forw,h_back])
+        h = Concatenate([h_forw,h_back],axis=1)
 
         # (None, Z_DIM) <- μ
         z_mean = Dense(G.Z_DIM, name='z_mean')(h)  # z_meanを出力
@@ -218,7 +218,7 @@ class AnoVAE:
         input_z = Input(shape=(G.Z_DIM,),name="input_z")
 
         # (None, 1 + Z_DIM)
-        actual_input_x = concatenate(axis=1)([decoder_inputs,input_z])
+        actual_input_x = concatenate([decoder_inputs,input_z],axis=1)
 
         # (None, TIMESTEPS, 1 + Z_DIM) <- from z
         repeat_x = RepeatVector(G.TIMESTEPS)(actual_input_x)
