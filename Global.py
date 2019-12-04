@@ -3,7 +3,7 @@ import numpy as np
 TIMESTEPS = 200
 #INTERMIDIATE_DIM = 100
 Z_DIM = 25
-Loss_Lambda = 0.1
+Loss_Lambda = 0.05
 BATCH_SIZE = 256
 
 #DATA_MIN = -150
