@@ -281,16 +281,27 @@ class AnoVAE:
 
         # 学習
         from keras.callbacks import TensorBoard, EarlyStopping
-        self.vae.fit([X_train,X_train2],
+        history = self.vae.fit([X_train,X_train2],
                      epochs=100,
                      batch_size=G.BATCH_SIZE,
                      shuffle=True,
                      validation_split=0.1,
                      callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
+
+        import matplotlib.pyplot as plt
+        # 損失の履歴をプロット
+        plt.plot(history.history['loss'])
+        plt.plot(history.history['val_loss'])
+        plt.title('model loss')
+        plt.xlabel('epoch')
+        plt.ylabel('loss')
+        plt.legend(['loss', 'val_loss'], loc='lower right')
+        plt.show()
+
         print("学習終了!")
 
         # W保存
-        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_zd{1}_b{2}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE))
+        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_zd{1}_b{2}_lam{3}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE,G.Loss_Lambda))
 
         weight_path = "./data/weight/{0}.h5".format(name)
         self.vae.save_weights(filepath=weight_path)
