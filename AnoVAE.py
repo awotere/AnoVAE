@@ -254,7 +254,7 @@ class AnoVAE:
             kl_loss = K.sum(kl_loss, axis=-1)
             kl_loss *= -0.5
 
-            lam = 0.01  # そのままじゃうまく行かなかったので重み付け
+            lam = G.Loss_Lambda  # そのままじゃうまく行かなかったので重み付け
             return K.mean((1 - lam) * reconstruction_loss + lam * kl_loss)
 
         vae.add_loss(loss(encoder_inputs, outputs))
