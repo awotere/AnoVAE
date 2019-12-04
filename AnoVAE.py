@@ -304,26 +304,18 @@ class AnoVAE:
         encoder = Model(encoder_layer.get_input_at(0), encoder_layer.get_output_at(0))
         mu_sigma = encoder.predict(X_train)
 
+        #最初のTIMESTEPS分は考慮しない
+        mu_sigma = mu_sigma[G.TIMESTEPS:]
 
-        #μ  (4800,20)->(20)
+        #μ  (4800,25)->(25)
         mu = mu_sigma[0]
-        mu = mu[G.TIMESTEPS:]
         mu = np.average(mu,axis=0)
 
-        #σ  (4800,20)
+        #σ  (4800,25)
         sigma = np.exp(mu_sigma[1]/2)
-        sigma = sigma[G.TIMESTEPS:]
+        sigma = np.average(sigma,axis=0)
 
-        #追加
-        #from sklearn.manifold import TSNE
-
-        #tsne = TSNE(n_components=2)
-        #mu = tsne.fit_transform(mu)
-        #mu = np.average(mu, axis=0)
-
-        #sigma = tsne.fit_transform(sigma)
-
-        #∑=diag(σ)  (20,20)
+        #∑=diag(σ)  (25,25)
         SIGMA = np.diag(sigma)
 
         path = "./data/mu_SIGMA/{0}.npz".format(name)
