@@ -438,7 +438,7 @@ class AnoVAE:
             x_true = np.reshape(x_true,newshape=G.TIMESTEPS)
             x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
 
-            error.append(distance.mahalanobis(x_true,x_reco))
+            error.append(distance.cityblock(x_true,x_reco))
         error += [0] * offset
 
         # z_listをt_SNEを用いて描画
