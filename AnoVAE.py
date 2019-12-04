@@ -78,7 +78,7 @@ def TestData2List(x):
 
 def ShowGlaph(t, r, e,dm,mm):
     import matplotlib.pyplot as plt
-    plt.subplot(4, 1, 1)
+    plt.subplot(3, 1, 1)
     plt.ylabel("Value")
     #plt.xlabel("time")
     plt.ylim(0, 1)
@@ -87,7 +87,7 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.plot(range(len(r)), r, label="reconstructed")
     plt.legend()
 
-    plt.subplot(4, 1, 2)
+    plt.subplot(3, 1, 2)
     plt.ylabel("Error Rate")
     #plt.xlabel("time")
     # plt.ylim(0,10)
@@ -96,7 +96,7 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.legend()
 
 
-    plt.subplot(4, 1, 3)
+    plt.subplot(3, 1, 3)
     plt.ylabel("Mahalanobis Distance")
     plt.xlabel("time")
     # plt.ylim(0,10)
@@ -104,13 +104,13 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.plot(range(len(dm)), dm, label="Mahalanobis Distance")
     plt.legend()
 
-    plt.subplot(4, 1, 4)
-    plt.ylabel("mu-mu Euclid Distance")
-    plt.xlabel("time")
+    #plt.subplot(4, 1, 4)
+    #plt.ylabel("mu-mu Euclid Distance")
+    #plt.xlabel("time")
     # plt.ylim(0,10)
 
-    plt.plot(range(len(mm)), mm, label="mu-mu Distance")
-    plt.legend()
+    #plt.plot(range(len(mm)), mm, label="mu-mu Distance")
+    #plt.legend()
 
     plt.show()
 
@@ -386,7 +386,7 @@ class AnoVAE:
         # predict
 
         X_reco = np.empty(shape=(0,G.TIMESTEPS))
-        mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
+        #mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
 
         # mu,取得
         mu_list, _, z_list = self.encoder.predict(X_true)
@@ -411,7 +411,7 @@ class AnoVAE:
             z = np.reshape(z, (1, -1))
             x = np.reshape(x, (1, -1))
             x_reco = self.decoder.predict([x,z])
-            mu_reencord_list = np.append(mu_reencord_list,self.encoder.predict(x_reco)[0][0])
+            #mu_reencord_list = np.append(mu_reencord_list,self.encoder.predict(x_reco)[0][0])
 
             x_reco = np.reshape(x_reco,newshape=(1,G.TIMESTEPS))
             X_reco = np.append(X_reco,x_reco,axis=0)
