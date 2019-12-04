@@ -378,7 +378,7 @@ class AnoVAE:
         X_reco = np.empty(shape=(0,G.TIMESTEPS))
 
         # z取得
-        _, _, z_list = self.encoder.predict(X_true)
+        mu, _, z_list = self.encoder.predict(X_true)
 
         # X_reco取得
         count = 0
@@ -434,7 +434,7 @@ class AnoVAE:
 
         dm = [0]*int(G.TIMESTEPS/2)
         for z in z_list[G.TIMESTEPS:]:
-            dm.append(distance.mahalanobis(z,self.true_mu,np.linalg.inv(self.true_SIGMA)))
+            dm.append(distance.mahalanobis(mu[0],self.true_mu,np.linalg.inv(self.true_SIGMA)))
         dm += [0]*offset
 
         print("true,reco,error,dmデータ作成完了しました")
