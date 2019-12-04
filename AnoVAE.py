@@ -309,9 +309,9 @@ class AnoVAE:
         mu = mu[G.TIMESTEPS:]
         mu = np.average(mu,axis=0)
 
-        #σ  (4800,25)
+        #σ  (4800,25)->(25)
         sigma = np.exp(mu_sigma[1]/2)
-        sigma = sigma[G.TIMESTEPS]
+        sigma = sigma[G.TIMESTEPS:]
         sigma = np.average(sigma,axis=0)
 
         #∑=diag(σ)  (25,25)
