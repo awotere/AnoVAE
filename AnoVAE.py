@@ -78,7 +78,7 @@ def TestData2List(x):
 
 def ShowGlaph(t, r, e,dm,mm):
     import matplotlib.pyplot as plt
-    plt.subplot(3, 1, 1)
+    plt.subplot(4, 1, 1)
     plt.ylabel("Value")
     #plt.xlabel("time")
     plt.ylim(0, 1)
@@ -87,7 +87,7 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.plot(range(len(r)), r, label="reconstructed")
     plt.legend()
 
-    plt.subplot(3, 1, 2)
+    plt.subplot(4, 1, 2)
     plt.ylabel("Error Rate")
     #plt.xlabel("time")
     # plt.ylim(0,10)
@@ -96,7 +96,7 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.legend()
 
 
-    plt.subplot(3, 1, 3)
+    plt.subplot(4, 1, 3)
     plt.ylabel("Mahalanobis Distance")
     plt.xlabel("time")
     # plt.ylim(0,10)
@@ -104,7 +104,7 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.plot(range(len(dm)), dm, label="Mahalanobis Distance")
     plt.legend()
 
-    plt.subplot(3, 1, 4)
+    plt.subplot(4, 1, 4)
     plt.ylabel("mu-mu Euclid Distance")
     plt.xlabel("time")
     # plt.ylim(0,10)
@@ -402,8 +402,10 @@ class AnoVAE:
 
             if count > max_count:
                 num_space += 1
-                print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■"*num_space,"＿"*(10-num_space),max_count/(t-time.time())))
+                now = time.time()
+                print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■"*num_space,"＿"*(10-num_space),max_count/(now-t)))
                 count = 0
+                t = now
 
             # zは[1,25]
             z = np.reshape(z, (1, -1))
