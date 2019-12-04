@@ -305,7 +305,7 @@ class AnoVAE:
         mu_sigma = encoder.predict(X_train)
 
         #最初のTIMESTEPS分は考慮しない
-        mu_sigma = mu_sigma[G.TIMESTEPS:]
+        mu_sigma = mu_sigma[G.TIMESTEPS:].copy()
 
         #μ  (4800,25)->(25)
         mu = mu_sigma[0]
