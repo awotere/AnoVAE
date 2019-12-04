@@ -76,7 +76,7 @@ def TestData2List(x):
     return x[:,-1]
 '''
 
-def ShowGlaph(t, r, e,dm):
+def ShowGlaph(t, r, e,dm,mm):
     import matplotlib.pyplot as plt
     plt.subplot(3, 1, 1)
     plt.ylabel("Value")
@@ -102,6 +102,14 @@ def ShowGlaph(t, r, e,dm):
     # plt.ylim(0,10)
 
     plt.plot(range(len(dm)), dm, label="Mahalanobis Distance")
+    plt.legend()
+
+    plt.subplot(3, 1, 4)
+    plt.ylabel("mu-mu Euclid Distance")
+    plt.xlabel("time")
+    # plt.ylim(0,10)
+
+    plt.plot(range(len(mm)), mm, label="mu-mu Distance")
     plt.legend()
 
     plt.show()
@@ -378,6 +386,7 @@ class AnoVAE:
         # predict
 
         X_reco = np.empty(shape=(0,G.TIMESTEPS))
+        mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
 
         # mu,取得
         mu_list, _, z_list = self.encoder.predict(X_true)
@@ -397,8 +406,13 @@ class AnoVAE:
             z = np.reshape(z, (1, -1))
             x = np.reshape(x, (1, -1))
             x_reco = self.decoder.predict([x,z])
+            mu_reencord_list = np.append(mu_reencord_list,self.encoder.predict(x_reco)[0][0])
+
             x_reco = np.reshape(x_reco,newshape=(1,G.TIMESTEPS))
             X_reco = np.append(X_reco,x_reco,axis=0)
+
+
+
             count += 1
 
 
@@ -415,6 +429,8 @@ class AnoVAE:
 
         offset = int(G.TIMESTEPS/2)
 
+        from scipy.spatial import distance
+
         # 再構成後の再構成後のマンハッタン距離
         error = [0]*offset
         for x_true,x_reco in zip(X_true[G.TIMESTEPS-1:],X_reco[G.TIMESTEPS-1:]):
@@ -422,17 +438,13 @@ class AnoVAE:
             x_true = np.reshape(x_true,newshape=G.TIMESTEPS)
             x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
 
-            d = 0
-            for t,r in zip(x_true,x_reco):
-                d += abs(t - r)
-            error.append(d)
+            error.append(distance.mahalanobis(x_true,x_reco))
         error += [0] * offset
 
         # z_listをt_SNEを用いて描画
         #Show_t_SNE(z_list)  # z
 
         #マハラノビス距離dm
-        from scipy.spatial import distance
 
         dm = [0]*int(G.TIMESTEPS/2)
         '''
@@ -444,9 +456,15 @@ class AnoVAE:
             dm.append(distance.mahalanobis(mu,self.true_mu,np.linalg.inv(self.true_SIGMA)))
         dm += [0]*offset
 
-        print("true,reco,error,dmデータ作成完了しました")
+        #元波形におけるμとdecord,re-encordを通したときのμのユークリッド距離
+        mm = [0]*int(G.TIMESTEPS/2)
+        for mu,re_mu in zip(mu_list[G.TIMESTEPS:],mu_reencord_list[G.TIMESTEPS:]):
+            mm.append(distance.euclidean(mu,re_mu))
+        dm += [0]*offset
 
-        return true_view, reco_view, error ,dm
+        print("表示用データ作成完了しました")
+
+        return true_view, reco_view, error ,dm, mm
 
     def LoadMuSIGMA(self):
 
@@ -476,8 +494,8 @@ def main():
     #    t,r,e = vae.TestCSV(path)
     #    ShowGlaph(t,r,e)
 
-    t, r, e, dm = vae.TestCSV()
-    ShowGlaph(t, r, e,dm)
+    t, r, e, dm, mm = vae.TestCSV()
+    ShowGlaph(t, r, e,dm,mm)
     return
 
 
