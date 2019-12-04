@@ -394,12 +394,15 @@ class AnoVAE:
         # X_reco取得
         count = 0
         num_space = 0
-        max_len = len(X_true2)
+        max_count = len(X_true2)/10
+
+        import time
+        t = time.time()
         for x,z in zip(X_true2,z_list):
 
-            if count > max_len/10:
+            if count > max_count:
                 num_space += 1
-                print("再構成しています... progress [{0}{1}]\r".format("■"*num_space,"＿"*(10-num_space)))
+                print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■"*num_space,"＿"*(10-num_space),max_count/(t-time.time())))
                 count = 0
 
             # zは[1,25]
