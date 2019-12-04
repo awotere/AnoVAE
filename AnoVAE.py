@@ -324,7 +324,7 @@ class AnoVAE:
         #sigma = tsne.fit_transform(sigma)
 
         #∑=diag(σ)  (20,20)
-        SIGMA = np.diag(sigma,rowvar=False)
+        SIGMA = np.diag(sigma)
 
         path = "./data/mu_SIGMA/{0}.npz".format(name)
         np.savez(path,mu=mu,SIGMA=SIGMA)
