@@ -76,9 +76,9 @@ def TestData2List(x):
     return x[:,-1]
 '''
 
-def ShowGlaph(t, r, e,dm,mm):
+def ShowGlaph(t, r, e,dkl):
     import matplotlib.pyplot as plt
-    plt.subplot(4, 1, 1)
+    plt.subplot(3, 1, 1)
     plt.ylabel("Value")
     #plt.xlabel("time")
     plt.ylim(0, 1)
@@ -87,12 +87,12 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.plot(range(len(r)), r, label="reconstructed")
     plt.legend()
 
-    plt.subplot(4, 1, 2)
+    plt.subplot(3, 1, 2)
     plt.ylabel("Error Rate")
     #plt.xlabel("time")
     # plt.ylim(0,10)
 
-    plt.plot(range(len(e)), e, label="Manhattan distance")
+    plt.plot(range(len(e)), e, label="Manhattan")
     plt.legend()
 
 
@@ -101,8 +101,8 @@ def ShowGlaph(t, r, e,dm,mm):
     plt.xlabel("time")
     # plt.ylim(0,10)
 
-    plt.plot(range(len(dm)), dm, label="Mahalanobis Distance")
-    plt.legend()
+    #plt.plot(range(len(dm)), dm, label="Mahalanobis")
+    #plt.legend()
 
     plt.subplot(4, 1, 4)
     plt.ylabel("mu-mu Euclid Distance")
@@ -370,8 +370,8 @@ class AnoVAE:
         # Wの読み込み
         if not self.load_weight_flag:
             self.LoadWeight()
-        if not self.load_muSIGMA_flag:
-            self.LoadMuSIGMA()
+        #if not self.load_muSIGMA_flag:
+            #self.LoadMuSIGMA()
 
         # テスト用csvファイルのパスを取得
         if path is None:
@@ -389,7 +389,7 @@ class AnoVAE:
         mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
 
         # mu,取得
-        mu_list, _, z_list = self.encoder.predict(X_true)
+        mu_list, sigma_list, z_list = self.encoder.predict(X_true)
 
         # X_reco取得
         count = 0
@@ -449,18 +449,6 @@ class AnoVAE:
         # z_listをt_SNEを用いて描画
         #Show_t_SNE(z_list)  # z
 
-        #マハラノビス距離dm
-
-        dm = [0]*int(G.TIMESTEPS/2)
-        '''
-        for z in z_list[G.TIMESTEPS:]:
-            dm.append(distance.mahalanobis(z,self.true_mu,np.linalg.inv(self.true_SIGMA)))
-        dm += [0]*offset
-        '''
-        for mu in mu_list[G.TIMESTEPS:]:
-            dm.append(distance.mahalanobis(mu,self.true_mu,np.linalg.inv(self.true_SIGMA)))
-        dm += [0]*offset
-
         #元波形におけるμとdecord,re-encordを通したときのμのユークリッド距離
         mm = [0]*int(G.TIMESTEPS/2)
         for mu,re_mu in zip(mu_list[G.TIMESTEPS:],mu_reencord_list[G.TIMESTEPS:]):
@@ -469,7 +457,8 @@ class AnoVAE:
 
         print("表示用データ作成完了しました")
 
-        return true_view, reco_view, error ,dm, mm
+        return true_view, reco_view, error ,dkl
+
 
     def LoadMuSIGMA(self):
 
@@ -493,14 +482,14 @@ def main():
         vae.Train()
     else:
         vae.LoadWeight()
-        vae.LoadMuSIGMA()
+        #vae.LoadMuSIGMA()
 
     # for path in glob.iglob("./data/Sin*Test*.csv"):
     #    t,r,e = vae.TestCSV(path)
     #    ShowGlaph(t,r,e)
 
-    t, r, e, dm, mm = vae.TestCSV()
-    ShowGlaph(t, r, e,dm,mm)
+    t, r, e,dkl = vae.TestCSV()
+    ShowGlaph(t, r, e,dkl)
     return
 
 
