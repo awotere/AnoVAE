@@ -84,11 +84,11 @@ def ShowGlaph(t, r, e,dkl):
     plt.ylim(0, 1)
 
     plt.plot(range(len(t)), t, label="original")
-    plt.plot(range(len(r)), r, label="reconstructed")
+    #plt.plot(range(len(r)), r, label="reconstructed")
     plt.legend()
 
     plt.subplot(3, 1, 2)
-    plt.ylabel("Error Rate")
+    plt.ylabel("Re")
     #plt.xlabel("time")
     # plt.ylim(0,10)
 
@@ -271,6 +271,11 @@ class AnoVAE:
         print("vaeの構成")
         vae.summary()
 
+        encoder._make_predict_function()
+        decoder._make_predict_function()
+        # コンパイル
+        vae.compile(optimizer="adam")
+
         return vae, encoder, decoder
 
 
@@ -285,9 +290,6 @@ class AnoVAE:
         # 学習データを作成
         X_train,X_train2 = BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
         print("Trainデータ読み込み完了")
-
-        # コンパイル
-        self.vae.compile(optimizer="adam")
 
         # 学習
         from keras.callbacks import TensorBoard, EarlyStopping
@@ -383,15 +385,102 @@ class AnoVAE:
 
         print("テストデータを読み込みました:\n{0}".format(path))
 
+        import threading
+
+        div_size = 8
+        #mu_list = sigma_list = np.empty(shape=(0,G.Z_DIM))
+        #X_reco = np.empty(shape=(0,G.TIMESTEPS))
+
+        train_datas = []
+        results = [[] for _ in range(div_size)]
+
+        for split_data1,split_data2 in zip(np.array_split(X_true,div_size,axis=0),np.array_split(X_true2,div_size,axis=0)):
+            train_datas.append([split_data1,split_data2])
+
+        def th_func(datas,results,id):
+
+            print("thread id is {0}".format(id))
+            t_X_reco = np.empty(shape=(0,G.TIMESTEPS))
+            t_X_true1,t_X_true2 = datas
+
+            t_mu_list,t_sigma_list,t_z_list = self.encoder.predict(t_X_true1)
+
+            '''
+            if id == 0:#id==0だけ進捗を表示
+                import time
+                t = time.time()
+                count = 0
+                num_space = 0
+                max_count = len(t_X_true2) / 10
+                for xs, zs in zip(np.array_split(t_X_true2,10,axis=0), np.array_split(t_z_list,10,axis=0)):
+                    if count > max_count:
+                        num_space += 1
+                        now = time.time()
+                        print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■" * num_space, "＿" * (10 - num_space),max_count / (now - t)))
+                        count = 0
+                        t = now
+
+                    # zは[1,25]
+                    x_reco = self.decoder.predict([xs, zs])
+
+                    x_reco = np.reshape(x_reco, newshape=(xs.shape[0], G.TIMESTEPS))
+                    t_X_reco = np.concatenate([t_X_reco, x_reco], axis=0)
+
+                    count += 1
+
+                results[id] = [t_mu_list,t_sigma_list,t_X_reco]
+                return
+            '''
+
+            t_X_reco = self.decoder.predict([t_X_true2, t_z_list])
+            t_X_reco = np.reshape(t_X_reco,newshape=(t_X_true1.shape[0],G.TIMESTEPS))
+            results[id] = [t_mu_list,t_sigma_list,t_X_reco]
+
+
+        th_list = [threading.Thread(target=th_func, args=[train_datas[id],results,id]) for id in range(div_size)]
+        #for id in range(div_size):
+        #    th_list.append(thread.Thread(target=th_func, args=[train_datas[id],results,id]))
+
+        for th in th_list:
+            th.start()
+
+        import  time
+        start_time = time.time()
+
+        active_count = div_size
+
+        while active_count != 0:
+
+            ac = 0
+            for th in th_list:
+                if th.isAlive():
+                    ac += 1
+
+            if active_count != ac:
+                active_count = ac
+                print("再構成しています... progress [{0}{1}] \r".format("=" * (div_size - active_count),"_" * active_count))
+        print("再構成完了! 処理速度: {0:.2f} process/s".format(X_true.shape[0] / (time.time()-start_time)))
+
+        for th in th_list:
+            th.join()
+
+        mu_list = sigma_list = np.empty(shape=(0,G.Z_DIM))
+        X_reco = np.empty(shape=(0,G.TIMESTEPS))
+        for r in results:
+            mu_list = np.concatenate([mu_list,r[0]],axis=0)
+            sigma_list = np.concatenate([sigma_list,r[1]],axis=0)
+            X_reco = np.concatenate([X_reco,r[2]],axis=0)
+
         # predict
 
         X_reco = np.empty(shape=(0,G.TIMESTEPS))
         mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
 
         # mu,取得
-        mu_list, sigma_list, z_list = self.encoder.predict(X_true)
+        #mu_list, sigma_list, z_list = self.encoder.predict(X_true)
 
         # X_reco取得
+        '''
         count = 0
         num_space = 0
         max_count = len(X_true2)/10
@@ -419,9 +508,7 @@ class AnoVAE:
 
 
             count += 1
-
-
-        print("再構成完了しました")
+        '''
 
         reco_view = np.array([])
         # 表示用のX_reco -> reco

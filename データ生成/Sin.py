@@ -3,7 +3,7 @@ import csv
 import numpy as np
 import sys
 
-import AnomalyDomain as AD
+import データ生成.AnomalyDomain as AD
 import random
 
 RANGE = 5000 #生成レンジ
@@ -11,7 +11,7 @@ RANGE = 5000 #生成レンジ
 #設定
 T = 1000                 #周期
 A = 1024                 #振幅 (必ず1024未満にするべし)
-domain_flag = True     #ドメインを使うか
+domain_flag = False     #ドメインを使うか
 #/設定
 
 array = [0]*RANGE
@@ -21,7 +21,8 @@ d_str = ""
 if domain_flag:
     d_str = "_TestDomain"
 
-file = open("./data/SinAno(T{0}_A{1}{2}).csv".format(T,A,d_str),"w",newline="")
+#file = open("./data/SinAno(T{0}_A{1}{2}).csv".format(T,A,d_str),"w",newline="")
+file = open("./random_.csv","w",newline="")
 writer = csv.writer(file)
 
 
@@ -56,10 +57,11 @@ TestDomain.range_list = [10,10,20,20,50,50,100,100,200,200]
 TestDomain.scale_list = [0.25,0.25,0.5,0.5,0.75,0.75,1,1,1.25,1.25]
 
 for t in range(RANGE):
-    y = int(np.sin( t / T * 2 * np.pi) * A + 2047)
+    #sin: y = int(np.sin( t / T * 2 * np.pi) * A + 2047)
+    y = int(500*random.uniform(-1,1))+2047
 
     if domain_flag:
-        y += TestDomain()
+        y += RandomDomain()
 
     writer.writerow([y])
 
