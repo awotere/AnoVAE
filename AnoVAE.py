@@ -150,25 +150,6 @@ class AnoVAE:
         return
 
     def BuildVAE(self):
-        """
-        入力(input)
-        ↓
-        GRU(encoder)
-        ↓
-        内部状態
-        ↓   ↓
-        mean, log_var
-        ↓
-        zをサンプリング(ここまでencoder)
-        ↓（このzを復元された内部状態だとして）
-        GRU(decoder)
-        ↓
-        全結合層(出力)
-        戻り値
-         model
-        """
-
-        # LATENT_DIM = G.LATENT_DIM
 
         from keras.layers import Input, Dense, RepeatVector, Lambda, TimeDistributed,concatenate
         # from keras.layers import GRU
@@ -387,128 +368,55 @@ class AnoVAE:
 
         import threading
 
-        div_size = 8
-        #mu_list = sigma_list = np.empty(shape=(0,G.Z_DIM))
-        #X_reco = np.empty(shape=(0,G.TIMESTEPS))
+        div_size = 2
 
-        train_datas = []
-        results = [[] for _ in range(div_size)]
-
-        for split_data1,split_data2 in zip(np.array_split(X_true,div_size,axis=0),np.array_split(X_true2,div_size,axis=0)):
-            train_datas.append([split_data1,split_data2])
+        print("再構成しています")
 
         def th_func(datas,results,id):
 
-            print("thread id is {0}".format(id))
             t_X_reco = np.empty(shape=(0,G.TIMESTEPS))
             t_X_true1,t_X_true2 = datas
 
             t_mu_list,t_sigma_list,t_z_list = self.encoder.predict(t_X_true1)
 
-            '''
-            if id == 0:#id==0だけ進捗を表示
-                import time
-                t = time.time()
-                count = 0
-                num_space = 0
-                max_count = len(t_X_true2) / 10
-                for xs, zs in zip(np.array_split(t_X_true2,10,axis=0), np.array_split(t_z_list,10,axis=0)):
-                    if count > max_count:
-                        num_space += 1
-                        now = time.time()
-                        print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■" * num_space, "＿" * (10 - num_space),max_count / (now - t)))
-                        count = 0
-                        t = now
-
-                    # zは[1,25]
-                    x_reco = self.decoder.predict([xs, zs])
-
-                    x_reco = np.reshape(x_reco, newshape=(xs.shape[0], G.TIMESTEPS))
-                    t_X_reco = np.concatenate([t_X_reco, x_reco], axis=0)
-
-                    count += 1
-
-                results[id] = [t_mu_list,t_sigma_list,t_X_reco]
-                return
-            '''
-
             t_X_reco = self.decoder.predict([t_X_true2, t_z_list])
             t_X_reco = np.reshape(t_X_reco,newshape=(t_X_true1.shape[0],G.TIMESTEPS))
             results[id] = [t_mu_list,t_sigma_list,t_X_reco]
 
+        def ThreadPredict(thread_size):
+            # 学習データを分割
+            train_datas = []
+            for split_data1, split_data2 in zip(np.array_split(X_true, div_size, axis=0),np.array_split(X_true2, div_size, axis=0)):
+                train_datas.append([split_data1, split_data2])
 
-        th_list = [threading.Thread(target=th_func, args=[train_datas[id],results,id]) for id in range(div_size)]
-        #for id in range(div_size):
-        #    th_list.append(thread.Thread(target=th_func, args=[train_datas[id],results,id]))
+            # スレッド内の処理結果
+            results = [[] for _ in range(div_size)]
 
-        for th in th_list:
-            th.start()
-
-        import  time
-        start_time = time.time()
-
-        active_count = div_size
-
-        while active_count != 0:
-
-            ac = 0
+            # スレッドのリスト
+            th_list = [threading.Thread(target=th_func, args=[train_datas[id], results, id]) for id in range(div_size)]
             for th in th_list:
-                if th.isAlive():
-                    ac += 1
+                th.start()
 
-            if active_count != ac:
-                active_count = ac
-                print("再構成しています... progress [{0}{1}] \r".format("=" * (div_size - active_count),"_" * active_count))
-        print("再構成完了! 処理速度: {0:.2f} process/s".format(X_true.shape[0] / (time.time()-start_time)))
+            import time
+            start_time = time.time()
 
-        for th in th_list:
-            th.join()
+            for th in th_list:
+                th.join()
+            end_time = time.time()
+            pro_time = end_time - start_time
 
-        mu_list = sigma_list = np.empty(shape=(0,G.Z_DIM))
-        X_reco = np.empty(shape=(0,G.TIMESTEPS))
-        for r in results:
-            mu_list = np.concatenate([mu_list,r[0]],axis=0)
-            sigma_list = np.concatenate([sigma_list,r[1]],axis=0)
-            X_reco = np.concatenate([X_reco,r[2]],axis=0)
+            t_mu_list = t_sigma_list = np.empty(shape=(0, G.Z_DIM))
+            t_X_reco = np.empty(shape=(0, G.TIMESTEPS))
+            for r in results:
+                t_mu_list = np.concatenate([t_mu_list, r[0]], axis=0)
+                t_sigma_list = np.concatenate([t_sigma_list, r[1]], axis=0)
+                t_X_reco = np.concatenate([t_X_reco, r[2]], axis=0)
 
-        # predict
+            print("再構成完了! スレッド数: {0} 処理時間: {1:.2f}  処理速度: {2:.2f} process/s".format(thread_size, pro_time,
+                                                                                    X_true.shape[0] / pro_time))
+            return t_mu_list,t_sigma_list,t_X_reco
 
-        X_reco = np.empty(shape=(0,G.TIMESTEPS))
-        mu_reencord_list = np.empty(shape=(0,G.Z_DIM))
-
-        # mu,取得
-        #mu_list, sigma_list, z_list = self.encoder.predict(X_true)
-
-        # X_reco取得
-        '''
-        count = 0
-        num_space = 0
-        max_count = len(X_true2)/10
-
-        import time
-        t = time.time()
-        for x,z in zip(X_true2,z_list):
-
-            if count > max_count:
-                num_space += 1
-                now = time.time()
-                print("再構成しています... progress [{0}{1}], speed:{2} process/s\r".format("■"*num_space,"＿"*(10-num_space),max_count/(now-t)))
-                count = 0
-                t = now
-
-            # zは[1,25]
-            z = np.reshape(z, (1, -1))
-            x = np.reshape(x, (1, -1))
-            x_reco = self.decoder.predict([x,z])
-            mu_reencord_list = np.append(mu_reencord_list,self.encoder.predict(x_reco)[0][0])
-
-            x_reco = np.reshape(x_reco,newshape=(1,G.TIMESTEPS))
-            X_reco = np.append(X_reco,x_reco,axis=0)
-
-
-
-            count += 1
-        '''
+        mu_list,sigma_list,X_reco = ThreadPredict(thread_size=8)
 
         reco_view = np.array([])
         # 表示用のX_reco -> reco
