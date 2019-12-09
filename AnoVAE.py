@@ -111,7 +111,7 @@ class AnoVAE:
 
         # X_encoder: encoderに入れるデータセット, X_decoder: decoderに入れるデータセット
         X_encoder = np.zeros(shape=(sample_size, G.TIMESTEPS))
-        X_decoder = np.zeros(shape=(sample_size,2))
+        X_decoder = np.zeros(shape=(sample_size, 2))
 
         # X_encoderの作成
         # timestep分スライスして格納
@@ -269,11 +269,11 @@ class AnoVAE:
 
         from keras.callbacks import TensorBoard, EarlyStopping
         history = self.vae.fit([encoder_inputs, decoder_inputs],
-                               epochs=100,
+                               epochs=1000,
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=5)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=4)])
 
         t = time.time() - t
 
