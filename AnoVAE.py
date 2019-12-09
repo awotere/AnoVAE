@@ -30,7 +30,7 @@ def GetFilePathFromDialog(file_types):
     return file
 
 
-def ShowGlaph(t, re, dkl):
+def ShowGlaph(t, re, ss):
     import matplotlib.pyplot as plt
     plt.subplot(3, 1, 1)
     plt.ylabel("Value")
@@ -46,22 +46,12 @@ def ShowGlaph(t, re, dkl):
     plt.plot(range(len(re)), re, label="Manhattan")
     plt.legend()
 
+    plt.subplot(3, 1, 3)
+    plt.ylabel("Probability")
 
-    plt.subplot(4, 1, 3)
-    plt.ylabel("Mahalanobis Distance")
-    plt.xlabel("time")
-    # plt.ylim(0,10)
-
-    #plt.plot(range(len(dm)), dm, label="Mahalanobis")
-    #plt.legend()
-
-    plt.subplot(4, 1, 4)
-    plt.ylabel("mu-mu Euclid Distance")
-    plt.xlabel("time")
-    # plt.ylim(0,10)
-
-    plt.plot(range(len(mm)), mm, label="mu-mu Distance")
+    plt.plot(range(len(ss)), ss, label="Probability")
     plt.legend()
+
 
     plt.show()
 
@@ -87,21 +77,21 @@ class AnoVAE:
 
     load_weight_flag = False
 
-    MIN_OF_12bit = 0
-    MAX_OF_12bit = 4095
+    MIN = None
+    MAX = None
 
     # コンストラクタ
     def __init__(self):
         self.vae, self.encoder, self.decoder = self.BuildVAE()
         return
 
-    def BuildData(self, dir, min_val, max_val):
+    def BuildData(self, path):
         # データ読み込み(サンプル数,)
-        X = np.loadtxt(dir, encoding="utf-8-sig")
+        X = np.loadtxt(path, encoding="utf-8-sig")
 
         # 最小値を0にして0-1に圧縮
         clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
-        X = np.array(list(map(lambda x: clamp((x - min_val) / (max_val - min_val), 0, 1), X)))
+        X = np.array(list(map(lambda x: clamp((x - self.MIN) / (self.MAX - self.MIN), 0, 1), X)))
 
         # 一次元配列から二次元行列に変換(None, 1)
         X = np.reshape(X, newshape=(-1))
@@ -111,7 +101,6 @@ class AnoVAE:
 
         # X_encoder: encoderに入れるデータセット, X_decoder: decoderに入れるデータセット
         X_encoder = np.zeros(shape=(sample_size, G.TIMESTEPS))
-        X_decoder = np.zeros(shape=(sample_size, 2))
 
         # X_encoderの作成
         # timestep分スライスして格納
@@ -121,11 +110,7 @@ class AnoVAE:
         # kerasに渡す形(sample,timestep,features)に変換
         X_encoder = np.expand_dims(X_encoder, axis=2)
 
-        # X_decoderの作成
-        for s,e,i in zip(X[G.TIMESTEPS:],X,range(sample_size)):
-            X_decoder[i] = np.array([s,e])
-
-        return X_encoder, X_decoder
+        return X_encoder, X[G.TIMESTEPS:]
 
     def BuildEncoder(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -188,8 +173,8 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, 1) <- 予測する波形の初期値と終了値
-        decoder_inputs = Input(shape=(2,), name='decoder_inputs')
+        # (None, 1) <-
+        decoder_inputs = Input(shape=(1,), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,), name="input_z")
 
         # (None, 1 + Z_DIM)
@@ -260,8 +245,9 @@ class AnoVAE:
             MSGBOX.showinfo("AnoVAE", "学習データを選んでください")
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
+        self.LoadMINMAX(path)
         # 学習データを作成
-        encoder_inputs, decoder_inputs = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        encoder_inputs, decoder_inputs = self.BuildData(path)
         print("Trainデータ読み込み完了")
 
         # 学習
@@ -273,7 +259,7 @@ class AnoVAE:
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=4)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
 
         t = time.time() - t
 
@@ -300,6 +286,16 @@ class AnoVAE:
 
         print("Train終了")
         self.load_weight_flag = True
+        return
+
+    def LoadMINMAX(self, path=None):
+        if path is None:
+            MSGBOX.showinfo("AnoVAE", "学習で使用したデータを選んでください")
+            path = GetFilePathFromDialog([("学習データ", "*.csv"), ("すべてのファイル", "*")])
+
+        X = np.loadtxt(path, encoding="utf-8-sig")
+        self.MIN = X.min()
+        self.MAX = X.max()
         return
 
     def LoadWeight(self, path=None):
@@ -394,6 +390,37 @@ class AnoVAE:
 
         return dkl
 
+    def GetMuDistance(self,mu_list):
+        from scipy.spatial import distance
+        md = []
+        O = np.zeros(G.Z_DIM)
+        for mu in mu_list:
+            md.append(distance.euclidean(O,mu))
+
+        return md
+
+    def GetTwoSigmaScore(self,mu_list,sigma_list):
+
+        ss = []
+
+        def Prob(lower, upper, mu, sgm):
+
+            import scipy
+            idx_l = (lower - mu) / np.sqrt(2) / sgm
+            idx_u = (upper - mu) / np.sqrt(2) / sgm
+
+            return 0.5 * (scipy.special.erf(idx_u) - scipy.special.erf(idx_l))
+
+        for mu,sigma in zip(mu_list,sigma_list):
+
+            p = 1.0
+            for m,s in zip(mu,sigma):
+                p *= Prob(-2,2,m,s)
+            ss.append(1-p)
+
+        return ss
+
+
     def TestCSV(self, path=None):
         # Wの読み込み
         if not self.load_weight_flag:
@@ -405,7 +432,7 @@ class AnoVAE:
             path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
         # テストデータセット作成
-        X_encoder, X_decoder = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        X_encoder, X_decoder = self.BuildData(path)
 
         print("テストデータを読み込みました:\n{0}".format(path))
 
@@ -425,19 +452,20 @@ class AnoVAE:
         xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
         xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
+        offset = int(G.TIMESTEPS / 2)
         # 再構成誤差(Re)
-        re = [0] * G.TIMESTEPS
+        re = [0] * offset
         re += self.GetReconstructionError(X_encoder, X_reco)
+        re += [0] * offset
 
-        #元波形におけるμとdecord,re-encordを通したときのμのユークリッド距離
-        mm = [0]*int(G.TIMESTEPS/2)
-        for mu,re_mu in zip(mu_list[G.TIMESTEPS:],mu_reencord_list[G.TIMESTEPS:]):
-            mm.append(distance.euclidean(mu,re_mu))
-        dm += [0]*offset
+        # 分布の計算
+        ss = [0] * offset
+        ss += self.GetTwoSigmaScore(mu_list,np.exp(sigma_list/2))
+        ss += [0] * offset
 
         print("表示用データ作成完了しました")
 
-        return xt, re, dkl
+        return xt, re, ss
 
 
 def main():
