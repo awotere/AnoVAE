@@ -8,7 +8,6 @@ import numpy as np
 
 import pyautogui
 
-import GRU_VAE as GV
 import Global as G  # 非推奨
 
 root = tkinter.Tk()
@@ -16,8 +15,14 @@ root.geometry("0x0")
 root.overrideredirect(1)
 root.withdraw()
 
+# メモ
+# (N) (N,) 要素数Nの一次元配列
+# (N,M) NxM行列
+# (N,M,L) NxMxL行列
+# ex) (N,3,2) は3x2の行列をN個持つ配列と言える
+
 def BuildData(dir, min_val, max_val):
-    # データ読み込み(全サンプル数)の配列
+    # データ読み込み(サンプル数,)
     X = np.loadtxt(dir, encoding="utf-8-sig")
 
     # 最小値を0にして0-1に圧縮
@@ -34,7 +39,7 @@ def BuildData(dir, min_val, max_val):
     Xr = np.zeros(shape=(sample_size, G.TIMESTEPS))
 
     # timestep分スライスして格納
-    for i in range(sample_size):
+    for i in range(G.TIMESTEPS - 1,sample_size):
         if i < G.TIMESTEPS - 1: #(0~)
             #Xr[0]: [0, 0, 0, ... , 0   , X[0]] shape=(TIMESTEP)
             #Xr[1]: [0, 0, 0, ... , X[0], X[1]] shape=(TIMESTEP)
@@ -59,22 +64,6 @@ def GetFilePathFromDialog(file_types):
     file = tkinter.filedialog.askopenfilename(filetypes=file_types, initialdir=iDir)
 
     return file
-
-''' 非推奨
-def TestData2List(x):
-
-    sample_size = x.shape[0]
-    timesteps = x.shape[1]
-    #データは一次元なので(sample_size,timesteps,1) -> (sample_size,timesteps)とする
-    np.reshape(x,newshape=(sample_size,timesteps))
-
-    # x[0]  : [0    , 0     , ... , 0    , X[0]]
-    # x[1]  : [0    , 0     , ... , X[0] , X[1]]
-    #  :    :    :       :    ＼     :       :
-    # x[-1] : [X[-t],X[-t+1], ... , X[-2], X[-1]]
-
-    return x[:,-1]
-'''
 
 def ShowGlaph(t, r, e,dkl):
     import matplotlib.pyplot as plt
@@ -150,10 +139,13 @@ class AnoVAE:
         return
 
     def BuildVAE(self):
+        #import os
+        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
         from keras.layers import Input, Dense, RepeatVector, Lambda, TimeDistributed,concatenate
-        # from keras.layers import GRU
-        from keras.layers import CuDNNGRU as GRU  # GPU用
+        from keras.layers import GRU
+        #from keras.layers import CuDNNGRU as GRU  # GPU用
         from keras.models import Model
         from keras import backend as K
 
@@ -273,6 +265,8 @@ class AnoVAE:
         print("Trainデータ読み込み完了")
 
         # 学習
+        import  time
+        t = time.time()
         from keras.callbacks import TensorBoard, EarlyStopping
         history = self.vae.fit([X_train,X_train2],
                      epochs=100,
@@ -280,6 +274,8 @@ class AnoVAE:
                      shuffle=True,
                      validation_split=0.1,
                      callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
+
+        t = time.time() - t
 
         import matplotlib.pyplot as plt
         # 損失の履歴をプロット
@@ -291,7 +287,7 @@ class AnoVAE:
         plt.legend(['loss', 'val_loss'], loc='lower right')
         plt.show()
 
-        print("学習終了!")
+        print("学習終了! 経過時間: {0:.2f}s".format(t))
 
         # W保存
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE", default="ts{0}_zd{1}_b{2}_lam{3}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE,G.Loss_Lambda))
@@ -418,6 +414,7 @@ class AnoVAE:
 
         mu_list,sigma_list,X_reco = ThreadPredict(thread_size=8)
 
+
         reco_view = np.array([])
         # 表示用のX_reco -> reco
         for x_reco in X_reco[G.TIMESTEPS - 1::G.TIMESTEPS]:
@@ -425,21 +422,18 @@ class AnoVAE:
 
             reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
         # リストに変換
-        true_view = list(X_true2)
-
-        offset = int(G.TIMESTEPS/2)
+        true_view = X_true2
 
         from scipy.spatial import distance
 
         # 再構成後の再構成後のマンハッタン距離
-        error = [0]*offset
+        error = [0] * G.TIMESTEPS
         for x_true,x_reco in zip(X_true[G.TIMESTEPS-1:],X_reco[G.TIMESTEPS-1:]):
 
             x_true = np.reshape(x_true,newshape=G.TIMESTEPS)
             x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
 
             error.append(distance.cityblock(x_true,x_reco))
-        error += [0] * offset
 
         # z_listをt_SNEを用いて描画
         #Show_t_SNE(z_list)  # z
