@@ -22,39 +22,6 @@ root.withdraw()
 # (N,M,L) NxMxL行列
 # ex) (N,3,2) は3x2の行列をN個持つ配列と言える
 
-'''
-def BuildData(dir, min_val, max_val):
-    # データ読み込み(サンプル数,)
-    X = np.loadtxt(dir, encoding="utf-8-sig")
-
-    # 最小値を0にして0-1に圧縮
-    clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
-    X = np.array(list(map(lambda x: clamp((x - min_val) / (max_val - min_val), 0, 1), X)))
-
-    # 一次元配列から二次元行列に変換(None, 1)
-    X = np.reshape(X,newshape=(-1))
-
-    # 全サンプル数(入力csvのデータ数)
-    sample_size = X.shape[0]
-
-    # (サンプル数,timestep)の行列
-    Xr = np.zeros(shape=(sample_size, G.TIMESTEPS))
-
-    # timestep分スライスして格納
-    start_index = G.TIMESTEPS - 1
-    for i in range(start_index,sample_size):
-        Xr[i - start_index] = X[i - start_index:i]
-
-    # kerasに渡す形(sample,timestep,features)に変換
-    Xr = np.expand_dims(Xr, axis=2)
-
-    # 内部処理用のデータセット(初期値のこと)がX
-    np.reshape(X,newshape=(-1,1))
-
-    return Xr, X
-'''
-
-
 def GetFilePathFromDialog(file_types):
     # ファイル選択ダイアログの表示
     iDir = os.path.abspath(os.path.dirname(__file__))
@@ -142,21 +109,23 @@ class AnoVAE:
         # 全サンプル数(入力csvのデータ数)
         sample_size = X.shape[0] - G.TIMESTEPS
 
-        # (サンプル数,timestep)の行列
-        Xr = np.zeros(shape=(sample_size, G.TIMESTEPS))
+        # X_encoder: encoderに入れるデータセット, X_decoder: decoderに入れるデータセット
+        X_encoder = np.zeros(shape=(sample_size, G.TIMESTEPS))
+        X_decoder = np.zeros(shape=(sample_size,2))
 
+        # X_encoderの作成
         # timestep分スライスして格納
-        start_index = G.TIMESTEPS - 1
-        for i in range(start_index, sample_size):
-            Xr[i - start_index] = X[i - start_index:i + 1]
+        for i in range(sample_size):
+            X_encoder[i] = X[i:i + G.TIMESTEPS]
 
         # kerasに渡す形(sample,timestep,features)に変換
-        Xr = np.expand_dims(Xr, axis=2)
+        X_encoder = np.expand_dims(X_encoder, axis=2)
 
-        # 内部処理用のデータセット(初期値のこと)がX
-        np.reshape(X, newshape=(-1, 1))
+        # X_decoderの作成
+        for s,e,i in zip(X[G.TIMESTEPS:],X,range(sample_size)):
+            X_decoder[i] = np.array([s,e])
 
-        return Xr, X[G.TIMESTEPS:]
+        return X_encoder, X_decoder
 
     def BuildEncoder(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -219,8 +188,8 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, 1) <- 予測する波形の初期値
-        decoder_inputs = Input(shape=(1,), name='decoder_inputs')
+        # (None, 1) <- 予測する波形の初期値と終了値
+        decoder_inputs = Input(shape=(2,), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,), name="input_z")
 
         # (None, 1 + Z_DIM)
@@ -292,19 +261,19 @@ class AnoVAE:
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
         # 学習データを作成
-        X_train, X_train2 = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        encoder_inputs, decoder_inputs = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
         print("Trainデータ読み込み完了")
 
         # 学習
         t = time.time()
 
         from keras.callbacks import TensorBoard, EarlyStopping
-        history = self.vae.fit([X_train, X_train2],
+        history = self.vae.fit([encoder_inputs, decoder_inputs],
                                epochs=100,
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=5)])
 
         t = time.time() - t
 
@@ -352,12 +321,12 @@ class AnoVAE:
 
         import threading
 
-        X_true, X_true2 = input_data
+        X_encoder, X_decoder = input_data
 
         # 学習データを分割
         train_datas = []
-        for split_data1, split_data2 in zip(np.array_split(X_true, thread_size, axis=0),
-                                            np.array_split(X_true2, thread_size, axis=0)):
+        for split_data1, split_data2 in zip(np.array_split(X_encoder, thread_size, axis=0),
+                                            np.array_split(X_decoder, thread_size, axis=0)):
             train_datas.append([split_data1, split_data2])
 
         # スレッド内の処理結果を格納する変数
@@ -398,7 +367,7 @@ class AnoVAE:
 
         pro_time = end_time - start_time
         print("再構成完了! スレッド数: {0} 処理時間: {1:.2f}  処理速度: {2:.2f} process/s".format(thread_size, pro_time,
-                                                                                X_true.shape[0] / pro_time))
+                                                                                X_encoder.shape[0] / pro_time))
         return mu_list, sigma_list, X_reco
 
     # 再構成後の再構成後のマンハッタン距離
@@ -436,13 +405,13 @@ class AnoVAE:
             path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
         # テストデータセット作成
-        X_true1, X_true2 = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
+        X_encoder, X_decoder = self.BuildData(path, self.MIN_OF_12bit, self.MAX_OF_12bit)
 
         print("テストデータを読み込みました:\n{0}".format(path))
 
         print("再構成しています...")
 
-        mu_list, sigma_list, X_reco = self.ThreadPredict([X_true1, X_true2], thread_size=8)
+        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
         # reco_view = np.array([])
         # 表示用のX_reco -> reco
@@ -453,12 +422,12 @@ class AnoVAE:
         # ReとD_KLの計算
 
         # 表示用のX_true
-        xt = list(np.reshape(X_true1[0],newshape=(-1,)))
-        xt += list(np.reshape(X_true2,newshape=(-1)))
+        xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
+        xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
         # 再構成誤差(Re)
         re = [0] * G.TIMESTEPS
-        re += self.GetReconstructionError(X_true1, X_reco)
+        re += self.GetReconstructionError(X_encoder, X_reco)
 
         #元波形におけるμとdecord,re-encordを通したときのμのユークリッド距離
         mm = [0]*int(G.TIMESTEPS/2)
