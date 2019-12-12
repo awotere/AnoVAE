@@ -99,7 +99,7 @@ class AnoVAE:
         # 全サンプル数(入力csvのデータ数)
         sample_size = X.shape[0] - G.TIMESTEPS
 
-        # X_encoder: encoderに入れるデータセット, X_decoder: decoderに入れるデータセット
+        # X_encoder: encoderに入れるデータセット
         X_encoder = np.zeros(shape=(sample_size, G.TIMESTEPS))
 
         # X_encoderの作成
@@ -173,7 +173,7 @@ class AnoVAE:
 
         from keras.layers import concatenate
 
-        # (None, 1) <-
+        # (None, 1) <-初期値
         decoder_inputs = Input(shape=(1,), name='decoder_inputs')
         input_z = Input(shape=(G.Z_DIM,), name="input_z")
 
@@ -237,7 +237,7 @@ class AnoVAE:
 
         return vae, encoder, decoder
 
-    # メンバ関数
+    # 学習
     def Train(self, path=None):
 
         # 学習データcsvファイルのパスを取得
@@ -411,11 +411,13 @@ class AnoVAE:
 
             return 0.5 * (scipy.special.erf(idx_u) - scipy.special.erf(idx_l))
 
+        normal = Prob(-2,2,0,1)
+
         for mu,sigma in zip(mu_list,sigma_list):
 
             p = 1.0
             for m,s in zip(mu,sigma):
-                p *= Prob(-2,2,m,s)
+                p *= Prob(-2.5,2.5,m,s)
             ss.append(1-p)
 
         return ss
@@ -452,16 +454,16 @@ class AnoVAE:
         xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
         xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
-        offset = int(G.TIMESTEPS / 2)
+        offset = int(G.TIMESTEPS)
         # 再構成誤差(Re)
         re = [0] * offset
         re += self.GetReconstructionError(X_encoder, X_reco)
-        re += [0] * offset
+        #re += [0] * offset
 
         # 分布の計算
         ss = [0] * offset
         ss += self.GetTwoSigmaScore(mu_list,np.exp(sigma_list/2))
-        ss += [0] * offset
+        #ss += [0] * offset
 
         print("表示用データ作成完了しました")
 
@@ -474,6 +476,7 @@ def main():
         vae.Train()
     else:
         vae.LoadWeight()
+        vae.LoadMINMAX()
 
     # for path in glob.iglob("./data/Sin*Test*.csv"):
     #    t,r,e = vae.TestCSV(path)
