@@ -30,26 +30,31 @@ def GetFilePathFromDialog(file_types):
     return file
 
 
-def ShowGlaph(t, re, ss):
+def ShowGlaph(glaphs):
+
+    t, re, ss = glaphs
+
     import matplotlib.pyplot as plt
+
+    #original
     plt.subplot(3, 1, 1)
     plt.ylabel("Value")
     plt.ylim(0, 1)
-
     plt.plot(range(len(t)), t, label="original")
-    # plt.plot(range(len(r)), r, label="reconstructed")
     plt.legend()
 
+    #Reconstruction Error
     plt.subplot(3, 1, 2)
-    plt.ylabel("Re")
-
-    plt.plot(range(len(re)), re, label="Manhattan")
+    plt.ylabel("ER")
+    plt.ylim(0, 50)
+    plt.plot(range(len(re)), re, label="Reconstruction Error")
     plt.legend()
 
+    #Error probability
     plt.subplot(3, 1, 3)
-    plt.ylabel("Probability")
-
-    plt.plot(range(len(ss)), ss, label="Probability")
+    plt.ylabel("EP")
+    plt.ylim(0, 1)
+    plt.plot(range(len(ss)), ss, label="Probability Error")
     plt.legend()
 
 
@@ -89,9 +94,9 @@ class AnoVAE:
         # データ読み込み(サンプル数,)
         X = np.loadtxt(path, encoding="utf-8-sig")
 
-        # 最小値を0にして0-1に圧縮
-        clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
-        X = np.array(list(map(lambda x: clamp((x - self.MIN) / (self.MAX - self.MIN), 0, 1), X)))
+        # 最小値を0にして0-1に圧縮(clampはしない)
+        #clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
+        X = np.array(list(map(lambda x: (x - self.MIN) / (self.MAX - self.MIN), X)))
 
         # 一次元配列から二次元行列に変換(None, 1)
         X = np.reshape(X, newshape=(-1))
@@ -245,7 +250,9 @@ class AnoVAE:
             MSGBOX.showinfo("AnoVAE", "学習データを選んでください")
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
-        self.LoadMINMAX(path)
+        #self.LoadMINMAX(path)
+        self.SetMINMAX(0,4095)
+
         # 学習データを作成
         encoder_inputs, decoder_inputs = self.BuildData(path)
         print("Trainデータ読み込み完了")
@@ -259,7 +266,7 @@ class AnoVAE:
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=10)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=7)])
 
         t = time.time() - t
 
@@ -270,12 +277,12 @@ class AnoVAE:
         plt.title('model loss')
         plt.xlabel('epoch')
         plt.ylabel('loss')
-        plt.legend(['loss', 'val_loss'], loc='lower right')
+        plt.legend(['loss', 'val_loss'], loc='upper right')
         plt.show()
 
         print("学習終了! 経過時間: {0:.2f}s".format(t))
 
-        # W保存
+        # weight保存
         name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE",
                                 default="ts{0}_zd{1}_b{2}_lam{3}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE,
                                                                          G.Loss_Lambda))
@@ -287,6 +294,10 @@ class AnoVAE:
         print("Train終了")
         self.load_weight_flag = True
         return
+
+    def SetMINMAX(self, MIN,MAX):
+        self.MIN = MIN
+        self.MAX = MAX
 
     def LoadMINMAX(self, path=None):
         if path is None:
@@ -300,12 +311,12 @@ class AnoVAE:
 
     def LoadWeight(self, path=None):
 
-        # Wのパスを取得
+        # weightのパスを取得
         if path is None:
             MSGBOX.showinfo("AnoVAE", "weightデータを選んでください")
             path = GetFilePathFromDialog([("weight", "*.h5"), ("すべてのファイル", "*")])
 
-        # Wの読み込み
+        # weightの読み込み
         self.vae.load_weights(path)
         print("weightを読み込みました:\n{0}".format(path))
 
@@ -354,6 +365,7 @@ class AnoVAE:
 
         end_time = time.time()
 
+        #結果を集積させる
         mu_list = sigma_list = np.empty(shape=(0, G.Z_DIM))
         X_reco = np.empty(shape=(0, G.TIMESTEPS))
         for r in results:
@@ -377,7 +389,7 @@ class AnoVAE:
 
         return re
 
-    # D_KL
+    # D_KL（ボツ）意味ないよ
     def GetKullbackLeiblerDivergence(self, mu_list, sigma_list):
         dkl = []
         for mu, sigma in zip(mu_list, sigma_list):
@@ -390,6 +402,7 @@ class AnoVAE:
 
         return dkl
 
+    # 原点からμのユークリッド距離（ボツ）意味なくはない
     def GetMuDistance(self,mu_list):
         from scipy.spatial import distance
         md = []
@@ -399,10 +412,15 @@ class AnoVAE:
 
         return md
 
-    def GetTwoSigmaScore(self,mu_list,sigma_list):
+    # zを生成する前のN(mu,sigma)が、標準正規分布のkσ区間内[-k,k]になりうる確率
+    # zの次元数だけ互いに独立した正規分布 N(μ0,σ0), N(μ1,σ1), ...があるため、
+    # すべての事象が起こる確率を計算する
+    # この確率が高い→正常である可能性が高い
+    def GetSigmaScore(self,k,mu_list,sigma_list):
 
-        ss = []
-
+        #   upper
+        # ∫     N(mu,sgm) の計算
+        #   lower
         def Prob(lower, upper, mu, sgm):
 
             import scipy
@@ -411,7 +429,7 @@ class AnoVAE:
 
             return 0.5 * (scipy.special.erf(idx_u) - scipy.special.erf(idx_l))
 
-        normal = Prob(-2,2,0,1)
+        ss = []
 
         for mu,sigma in zip(mu_list,sigma_list):
 
@@ -448,7 +466,7 @@ class AnoVAE:
         #    x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
         #    reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
 
-        # ReとD_KLの計算
+        t = time.time()
 
         # 表示用のX_true
         xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
@@ -462,12 +480,12 @@ class AnoVAE:
 
         # 分布の計算
         ss = [0] * offset
-        ss += self.GetTwoSigmaScore(mu_list,np.exp(sigma_list/2))
+        ss += self.GetSigmaScore(3,mu_list,np.exp(sigma_list/2))
         #ss += [0] * offset
 
-        print("表示用データ作成完了しました")
+        print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time()-t))
 
-        return xt, re, ss
+        return [xt, re, ss]
 
 
 def main():
@@ -476,14 +494,13 @@ def main():
         vae.Train()
     else:
         vae.LoadWeight()
-        vae.LoadMINMAX()
+        vae.SetMINMAX(0,4095)
 
     # for path in glob.iglob("./data/Sin*Test*.csv"):
     #    t,r,e = vae.TestCSV(path)
     #    ShowGlaph(t,r,e)
 
-    t, re, dkl = vae.TestCSV()
-    ShowGlaph(t, re, dkl)
+    ShowGlaph(vae.TestCSV())
     return
 
 

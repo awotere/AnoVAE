@@ -1,6 +1,6 @@
 TIMESTEPS = 200
 Z_DIM = 20
-Loss_Lambda = 0.2
+Loss_Lambda = 0.1
 BATCH_SIZE = 256
 
 
