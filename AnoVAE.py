@@ -561,9 +561,38 @@ class AnoVAE:
 
         # 評価指標計算
         er, ep,error = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
-        print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time()-t))
 
-        return [xt, er, ep,error]
+        ShowGlaph([xt, er, ep,error])
+        print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
+
+        from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
+
+        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを異常範囲データを指定してください")
+        tf_path = GetFilePathFromDialog(("異常範囲データ.csv","*.csv"),("すべてのファイル", "*"))
+
+        true = np.loadtxt(tf_path, encoding="utf-8-sig") #真値Ground truth
+        pred_list = np.array(error) #予測値
+
+        recall_list = precision_list = F_list = []
+        for threshold in range(G.TIMESTEPS * 2 + 1):
+            pred = pred_list >= threshold
+
+            recall_list.append(recall_score(true,pred)) #検出率
+            precision_list.append(precision_score(true,pred)) #精度
+            F_list.append(f1_score(true,pred))
+
+        import matplotlib.pyplot as plt
+
+        # グラフ
+        plt.ylabel("")
+        plt.ylim(0, 1)
+        plt.plot(range(len(recall_list)), recall_list, label="Recall")
+        plt.plot(range(len(precision_list)), precision_list, label="Precision")
+        plt.plot(range(len(F_list)), F_list, label="F-score")
+        plt.legend()
+
+
+        return
 
 
 def main():
@@ -576,7 +605,7 @@ def main():
         vae.SetThreshold()
 
 
-    ShowGlaph(vae.TestCSV())
+    vae.TestCSV()
     return
 
 
