@@ -586,9 +586,10 @@ class AnoVAE:
         # グラフ
         plt.ylabel("")
         plt.ylim(0, 1)
-        plt.plot(range(len(recall_list)), recall_list, label="Recall")
-        plt.plot(range(len(precision_list)), precision_list, label="Precision")
-        plt.plot(range(len(F_list)), F_list, label="F-score")
+        x_axis = range(len(recall_list))
+        plt.plot(x_axis, recall_list, label="Recall")
+        plt.plot(x_axis, precision_list, label="Precision")
+        plt.plot(x_axis, F_list, label="F-score")
         plt.legend()
 
 
