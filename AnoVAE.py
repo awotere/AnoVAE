@@ -32,31 +32,37 @@ def GetFilePathFromDialog(file_types):
 
 def ShowGlaph(glaphs):
 
-    t, re, ss = glaphs
+    true, er, ep, error = glaphs
 
     import matplotlib.pyplot as plt
 
     #original
-    plt.subplot(3, 1, 1)
+    plt.subplot(4, 1, 1)
     plt.ylabel("Value")
     plt.ylim(0, 1)
-    plt.plot(range(len(t)), t, label="original")
+    plt.plot(range(len(true)), true, label="original")
     plt.legend()
 
     #Reconstruction Error
-    plt.subplot(3, 1, 2)
+    plt.subplot(4, 1, 2)
     plt.ylabel("ER")
     plt.ylim(0, 50)
-    plt.plot(range(len(re)), re, label="Reconstruction Error")
+    plt.plot(range(len(er)), er, label="Reconstruction Error")
     plt.legend()
 
-    #Error probability
-    plt.subplot(3, 1, 3)
+    #Probability Error
+    plt.subplot(4, 1, 3)
     plt.ylabel("EP")
     plt.ylim(0, 1)
-    plt.plot(range(len(ss)), ss, label="Probability Error")
+    plt.plot(range(len(ep)), ep, label="Probability Error")
     plt.legend()
 
+    #Error Rate
+    plt.subplot(4, 1, 4)
+    plt.ylabel("E")
+    #plt.ylim(0, 1)
+    plt.plot(range(len(error)), error, label="ErrorRate")
+    plt.legend()
 
     plt.show()
 
@@ -81,16 +87,26 @@ class AnoVAE:
     decoder = None
 
     load_weight_flag = False
+    load_minmax_flag = False
+    set_threshold_flag = False
 
     MIN = None
     MAX = None
+
+    THRESHOLD_ER = 0
+    THRESHOLD_EP = 0
 
     # コンストラクタ
     def __init__(self):
         self.vae, self.encoder, self.decoder = self.BuildVAE()
         return
 
+    # データセットをCSVから作成する関数
     def BuildData(self, path):
+
+        if not self.load_minmax_flag:
+            self.LoadMINMAX()
+
         # データ読み込み(サンプル数,)
         X = np.loadtxt(path, encoding="utf-8-sig")
 
@@ -117,6 +133,7 @@ class AnoVAE:
 
         return X_encoder, X[G.TIMESTEPS:]
 
+    # ネットワーク作成
     def BuildEncoder(self):
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
         os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -247,15 +264,15 @@ class AnoVAE:
 
         # 学習データcsvファイルのパスを取得
         if path is None:
-            MSGBOX.showinfo("AnoVAE", "学習データを選んでください")
+            MSGBOX.showinfo("AnoVAE>Train", "学習データを選んでください")
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
+            self.LoadMINMAX(path)
 
-        #self.LoadMINMAX(path)
-        self.SetMINMAX(0,4095)
+        # self.SetMINMAX(0,4095)
 
         # 学習データを作成
         encoder_inputs, decoder_inputs = self.BuildData(path)
-        print("Trainデータ読み込み完了")
+        print("Trainデータ読み込み完了\n{0}".format(path))
 
         # 学習
         t = time.time()
@@ -283,13 +300,16 @@ class AnoVAE:
         print("学習終了! 経過時間: {0:.2f}s".format(t))
 
         # weight保存
-        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE",
+        name = pyautogui.prompt(text="weight保存名を指定してください", title="AnoVAE>Train",
                                 default="ts{0}_zd{1}_b{2}_lam{3}".format(G.TIMESTEPS, G.Z_DIM, G.BATCH_SIZE,
                                                                          G.Loss_Lambda))
 
         weight_path = "./data/weight/{0}.h5".format(name)
         self.vae.save_weights(filepath=weight_path)
         print("weightを保存しました:\n{0}", weight_path)
+
+        # ER,EPのしきい値を計算
+        self.SetThreshold(path)
 
         print("Train終了")
         self.load_weight_flag = True
@@ -298,15 +318,20 @@ class AnoVAE:
     def SetMINMAX(self, MIN,MAX):
         self.MIN = MIN
         self.MAX = MAX
+        self.load_minmax_flag = True
+        return
+
 
     def LoadMINMAX(self, path=None):
         if path is None:
-            MSGBOX.showinfo("AnoVAE", "学習で使用したデータを選んでください")
+            MSGBOX.showinfo("AnoVAE>LoadMINMAX", "学習で使用したデータを選んでください")
             path = GetFilePathFromDialog([("学習データ", "*.csv"), ("すべてのファイル", "*")])
 
         X = np.loadtxt(path, encoding="utf-8-sig")
         self.MIN = X.min()
         self.MAX = X.max()
+        self.load_minmax_flag = True
+
         return
 
     def LoadWeight(self, path=None):
@@ -322,6 +347,26 @@ class AnoVAE:
 
         self.load_weight_flag = True
         return
+
+    def SetThreshold(self, path=None):
+
+        # 正常データのパス
+        if path is None:
+            MSGBOX.showinfo("AnoVAE>SetThreshould", "正常データを選んでください")
+            path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
+
+        X_encoder,X_decoder = self.BuildData(path)
+
+        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
+
+        er,ep,_ = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
+        self.THRESHOLD_ER = max(er)
+        self.THRESHOLD_EP = max(ep)
+
+        self.set_threshold_flag = True
+        return
+
+
 
     # マルチスレッドでPredict
     def ThreadPredict(self, input_data, thread_size):
@@ -374,8 +419,7 @@ class AnoVAE:
             X_reco = np.concatenate([X_reco, r[2]], axis=0)
 
         pro_time = end_time - start_time
-        print("再構成完了! スレッド数: {0} 処理時間: {1:.2f}  処理速度: {2:.2f} process/s".format(thread_size, pro_time,
-                                                                                X_encoder.shape[0] / pro_time))
+
         return mu_list, sigma_list, X_reco
 
     # 再構成後の再構成後のマンハッタン距離
@@ -389,7 +433,7 @@ class AnoVAE:
 
         return re
 
-    # D_KL（ボツ）意味ないよ
+    # D_KL（ボツ）：計算する意味がなかった
     def GetKullbackLeiblerDivergence(self, mu_list, sigma_list):
         dkl = []
         for mu, sigma in zip(mu_list, sigma_list):
@@ -402,7 +446,7 @@ class AnoVAE:
 
         return dkl
 
-    # 原点からμのユークリッド距離（ボツ）意味なくはない
+    # 原点からμのユークリッド距離（ボツ）：意味なくはないけど使えるの？
     def GetMuDistance(self,mu_list):
         from scipy.spatial import distance
         md = []
@@ -411,6 +455,34 @@ class AnoVAE:
             md.append(distance.euclidean(O,mu))
 
         return md
+
+    # 正常データと再構成データから異常度を表すパラメータ(ER,EP,?)を取得する関数
+    def GetScore(self,X_true,X_reco,mu_list,sigma_list):
+
+        offset = int(G.TIMESTEPS)
+        # 再構成誤差(ER)
+        er = [0] * offset
+        er += self.GetReconstructionError(X_true, X_reco)
+
+        # 分布の計算(EP)
+        ep = [0] * offset
+        ep += self.GetSigmaScore(3,mu_list,np.exp(sigma_list/2))
+
+        # 異常度
+        timesteps = X_true.shape[1]
+        all_size = X_true.shape[0] + timesteps
+        error = [0] * all_size
+        for er_i,ep_i,i in zip(er[timesteps:],ep[timesteps:],range(timesteps,all_size)):
+
+            if er_i > self.THRESHOLD_ER or ep_i > self.THRESHOLD_EP:
+                for j in range(timesteps):
+                    error[i - j] += 1/timesteps
+
+            #if ep_i > self.THRESHOLD_EP:
+            #    for j in range(timesteps):
+            #        error[i - j] += 1
+
+        return er,ep,error
 
     # zを生成する前のN(mu,sigma)が、標準正規分布のkσ区間内[-k,k]になりうる確率
     # zの次元数だけ互いに独立した正規分布 N(μ0,σ0), N(μ1,σ1), ...があるため、
@@ -441,10 +513,28 @@ class AnoVAE:
         return ss
 
 
+    # テストデータ(CSV)を評価する関数
     def TestCSV(self, path=None):
-        # Wの読み込み
+
+        print("CSVTestを実行します")
+
+        ############################# パラメータの設定 ##############################
+        # weightの読み込み
         if not self.load_weight_flag:
             self.LoadWeight()
+        print("重みデータを読み込みました")
+
+        #閾値の読み込み
+        if not self.set_threshold_flag:
+            self.SetThreshold()
+        print("評価指標用の閾値の設定を行いました\n ER:{0}   EP:{1}".format(self.THRESHOLD_ER,self.THRESHOLD_EP))
+
+        # minmaxの設定
+        if not self.load_minmax_flag:
+            self.LoadMINMAX()
+        print("学習レンジの設定を行いました\n min:{0}   MAX:{1}".format(self.MIN, self.MAX))
+
+        ############################# 推論 ##############################
 
         # テスト用csvファイルのパスを取得
         if path is None:
@@ -453,39 +543,27 @@ class AnoVAE:
 
         # テストデータセット作成
         X_encoder, X_decoder = self.BuildData(path)
-
-        print("テストデータを読み込みました:\n{0}".format(path))
-
+        print("データセットを作成しました:\n{0}".format(path))
         print("再構成しています...")
 
-        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
-
-        # reco_view = np.array([])
-        # 表示用のX_reco -> reco
-        # for x_reco in X_reco[G.TIMESTEPS - 1::G.TIMESTEPS]:
-        #    x_reco = np.reshape(x_reco,newshape=G.TIMESTEPS)
-        #    reco_view = np.hstack((reco_view, np.reshape(x_reco, newshape=(-1))))
-
+        # 再構成
         t = time.time()
+        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
+        pro_time = time.time() - t
+        print("再構成完了! 処理時間: {0:.2f}s  処理速度: {1:.2f} process/s".format(pro_time, X_encoder.shape[0] / pro_time))
+
+        ############################# 評価 ##############################
 
         # 表示用のX_true
+        t = time.time()
         xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
         xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
-        offset = int(G.TIMESTEPS)
-        # 再構成誤差(Re)
-        re = [0] * offset
-        re += self.GetReconstructionError(X_encoder, X_reco)
-        #re += [0] * offset
-
-        # 分布の計算
-        ss = [0] * offset
-        ss += self.GetSigmaScore(3,mu_list,np.exp(sigma_list/2))
-        #ss += [0] * offset
-
+        # 評価指標計算
+        er, ep,error = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time()-t))
 
-        return [xt, re, ss]
+        return [xt, er, ep,error]
 
 
 def main():
@@ -495,10 +573,8 @@ def main():
     else:
         vae.LoadWeight()
         vae.SetMINMAX(0,4095)
+        vae.SetThreshold()
 
-    # for path in glob.iglob("./data/Sin*Test*.csv"):
-    #    t,r,e = vae.TestCSV(path)
-    #    ShowGlaph(t,r,e)
 
     ShowGlaph(vae.TestCSV())
     return
