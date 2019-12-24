@@ -576,6 +576,8 @@ class AnoVAE:
         recall_list = []
         precision_list = []
         F_list = []
+        max_F = 0
+        max_threshold = 0
         for threshold in range(G.TIMESTEPS + 1):
             pred = pred_list >= threshold
 
@@ -589,7 +591,11 @@ class AnoVAE:
 
             recall_list.append(recall_score(true,pred)) #検出率
             precision_list.append(precision_score(true,pred)) #精度
-            F_list.append(f1_score(true,pred))
+            F = f1_score(true, pred)
+            if F > max_F:
+                max_F = F
+                max_threshold = threshold
+            F_list.append(F)
 
         import matplotlib.pyplot as plt
 
@@ -600,6 +606,31 @@ class AnoVAE:
         plt.plot(x_axis, recall_list, label="Recall")
         plt.plot(x_axis, precision_list, label="Precision")
         plt.plot(x_axis, F_list, label="F-score")
+        plt.legend()
+
+        plt.show()
+
+        # original
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+
+        error_region = pred_list >= max_threshold
+
+        for i in range(error_region):
+            if error_region[i] :
+                plt.axvspan(i - 0.5,i+0.5,color="#ffcdd2",label="Error")
+
+        plt.plot(range(len(true)), true, label="original")
+        plt.legend()
+
+
+        # Error Rate
+        plt.subplot(2, 1, 2)
+        plt.ylabel("E")
+        # plt.ylim(0, 1)
+        plt.plot(range(len(error)), error, label="ErrorRate")
+        plt.plot(range(len(error)),max_threshold,label="threshold")
         plt.legend()
 
         plt.show()
