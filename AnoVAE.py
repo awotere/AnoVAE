@@ -629,8 +629,11 @@ class AnoVAE:
         plt.subplot(2, 1, 2)
         plt.ylabel("E")
         # plt.ylim(0, 1)
+
+        th_line = [max_threshold] * len(error)
+
         plt.plot(range(len(error)), error, label="ErrorRate")
-        plt.plot(range(len(error)),max_threshold,label="threshold")
+        plt.plot(range(len(error)),th_line,label="threshold")
         plt.legend()
 
         plt.show()
