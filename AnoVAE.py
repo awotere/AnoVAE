@@ -474,13 +474,13 @@ class AnoVAE:
         error = [0] * all_size
         for er_i,ep_i,i in zip(er[timesteps:],ep[timesteps:],range(timesteps,all_size)):
 
-            if er_i > self.THRESHOLD_ER or ep_i > self.THRESHOLD_EP:
+            if er_i > self.THRESHOLD_ER:
                 for j in range(timesteps):
-                    error[i - j] += 1/timesteps
+                    error[i - j] += 1
 
-            #if ep_i > self.THRESHOLD_EP:
-            #    for j in range(timesteps):
-            #        error[i - j] += 1
+            if ep_i > self.THRESHOLD_EP:
+                for j in range(timesteps):
+                    error[i - j] += 1
 
         return er,ep,error
 
