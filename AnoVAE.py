@@ -628,19 +628,19 @@ class AnoVAE:
 
         # 表示用のX_true
         t = time.time()
-        xt = list(np.reshape(X_encoder[0],newshape=(-1,)))
-        xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
+        true = list(np.reshape(X_encoder[0],newshape=(-1,)))
+        true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep, error = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
+        er, ep, error_rate = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
 
-        self.ShowScoreGlaph([xt, er, ep, error])
+        self.ShowScoreGlaph(true, er, ep, error_rate)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
-        error_threshold = self.GetErrorRateThreshold(error)
+        error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        self.ShowErrorRegion(xt,error,error_threshold)
+        self.ShowErrorRegion(true,error_rate,error_threshold)
 
         ############################# 2回目 推論 ##############################
 
@@ -657,13 +657,13 @@ class AnoVAE:
         ############################# 評価 ##############################
 
         # 表示用のX_true
-        xt = list(np.reshape(X_encoder[0], newshape=(-1,)))
-        xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
+        true = list(np.reshape(X_encoder[0], newshape=(-1,)))
+        true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        _, _, error = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        _, _, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowErrorRegion(xt,error,error_threshold)
+        self.ShowErrorRegion(true,error_rate,error_threshold)
 
         return
 
