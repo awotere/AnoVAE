@@ -271,7 +271,7 @@ class AnoVAE:
         print("weightを保存しました:\n{0}", weight_path)
 
         # ER,EPのしきい値を計算
-        self.SetThreshold(path)
+        self.SetEREPThreshold(path)
 
         print("Train終了")
         self.load_weight_flag = True
@@ -310,7 +310,7 @@ class AnoVAE:
         self.load_weight_flag = True
         return
 
-    def SetThreshold(self, path=None):
+    def SetEREPThreshold(self, path=None):
 
         # 正常データのパス
         if path is None:
@@ -474,7 +474,7 @@ class AnoVAE:
 
         return ss
 
-    def DecideThreshold(self,error):
+    def GetErrorRateThreshold(self,error):
         from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
 
         MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
@@ -549,7 +549,7 @@ class AnoVAE:
 
         # Error Rate
         plt.subplot(4, 1, 4)
-        plt.ylabel("E")
+        plt.ylabel("Error Rate")
         # plt.ylim(0, 1)
         plt.plot(range(len(error_rate)), error_rate, label="ErrorRate")
         plt.legend()
@@ -598,7 +598,7 @@ class AnoVAE:
 
         #閾値の読み込み
         if not self.set_threshold_flag:
-            self.SetThreshold()
+            self.SetEREPThreshold()
         print("評価指標用の閾値の設定を行いました\n ER:{0}   EP:{1}".format(self.THRESHOLD_ER,self.THRESHOLD_EP))
 
         # minmaxの設定
@@ -638,9 +638,9 @@ class AnoVAE:
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
-        max_threshold = self.DecideThreshold(error)
+        error_threshold = self.GetErrorRateThreshold(error)
 
-        self.ShowErrorRegion(xt,error,max_threshold)
+        self.ShowErrorRegion(xt,error,error_threshold)
 
         ############################# 2回目 推論 ##############################
 
@@ -663,7 +663,7 @@ class AnoVAE:
         # 評価指標計算
         _, _, error = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowErrorRegion(xt,error,max_threshold)
+        self.ShowErrorRegion(xt,error,error_threshold)
 
         return
 
