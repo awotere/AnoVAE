@@ -29,44 +29,6 @@ def GetFilePathFromDialog(file_types):
 
     return file
 
-
-def ShowGlaph(glaphs):
-
-    true, er, ep, error = glaphs
-
-    import matplotlib.pyplot as plt
-
-    #original
-    plt.subplot(4, 1, 1)
-    plt.ylabel("Value")
-    plt.ylim(0, 1)
-    plt.plot(range(len(true)), true, label="original")
-    plt.legend()
-
-    #Reconstruction Error
-    plt.subplot(4, 1, 2)
-    plt.ylabel("ER")
-    plt.ylim(0, 50)
-    plt.plot(range(len(er)), er, label="Reconstruction Error")
-    plt.legend()
-
-    #Probability Error
-    plt.subplot(4, 1, 3)
-    plt.ylabel("EP")
-    plt.ylim(0, 1)
-    plt.plot(range(len(ep)), ep, label="Probability Error")
-    plt.legend()
-
-    #Error Rate
-    plt.subplot(4, 1, 4)
-    plt.ylabel("E")
-    #plt.ylim(0, 1)
-    plt.plot(range(len(error)), error, label="ErrorRate")
-    plt.legend()
-
-    plt.show()
-
-
 def Show_t_SNE(X):
     from sklearn.manifold import TSNE
     import matplotlib.pyplot as plt
@@ -512,6 +474,116 @@ class AnoVAE:
 
         return ss
 
+    def DecideThreshold(self,error):
+        from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
+
+        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
+        tf_path = GetFilePathFromDialog([("異常範囲データ.csv","*.csv"),("すべてのファイル", "*")])
+
+        true = np.loadtxt(tf_path, dtype=bool ,encoding="utf-8-sig") #真値Ground truth
+        pred_list = np.array(error) #予測値
+
+        recall_list = []
+        precision_list = []
+        F_list = []
+        max_F = 0
+        max_threshold = 0
+        for threshold in range(G.TIMESTEPS + 1):
+            pred = pred_list >= threshold
+
+            cm = confusion_matrix(true,pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:
+                recall_list.append(None)
+                precision_list.append(None)
+                F_list.append(None)
+                continue
+
+            recall_list.append(recall_score(true,pred)) #検出率
+            precision_list.append(precision_score(true,pred)) #精度
+            F = f1_score(true, pred)
+            if F > max_F:
+                max_F = F
+                max_threshold = threshold
+            F_list.append(F)
+
+        import matplotlib.pyplot as plt
+
+        # グラフ
+        plt.ylabel("")
+        plt.ylim(0, 1)
+        x_axis = range(len(recall_list))
+        plt.plot(x_axis, recall_list, label="Recall")
+        plt.plot(x_axis, precision_list, label="Precision")
+        plt.plot(x_axis, F_list, label="F-score")
+        plt.legend()
+
+        plt.show()
+
+        return max_threshold
+
+    def ShowScoreGlaph(self,true,er,ep,error_rate):
+
+        import matplotlib.pyplot as plt
+
+        # original
+        plt.subplot(4, 1, 1)
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+        plt.plot(range(len(true)), true, label="original")
+        plt.legend()
+
+        # Reconstruction Error
+        plt.subplot(4, 1, 2)
+        plt.ylabel("ER")
+        plt.ylim(0, 50)
+        plt.plot(range(len(er)), er, label="Reconstruction Error")
+        plt.legend()
+
+        # Probability Error
+        plt.subplot(4, 1, 3)
+        plt.ylabel("EP")
+        plt.ylim(0, 1)
+        plt.plot(range(len(ep)), ep, label="Probability Error")
+        plt.legend()
+
+        # Error Rate
+        plt.subplot(4, 1, 4)
+        plt.ylabel("E")
+        # plt.ylim(0, 1)
+        plt.plot(range(len(error_rate)), error_rate, label="ErrorRate")
+        plt.legend()
+
+        plt.show()
+
+    def ShowErrorRegion(self,true,error_rate,threshold):
+
+        import matplotlib.pyplot as plt
+        # original
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+
+        error_region = np.array(error_rate) >= threshold
+
+        for i in range(len(error_region)):
+            if error_region[i]:
+                plt.axvspan(i - 0.5, i + 0.5, color="#ffcdd2")
+
+        plt.plot(range(len(true)), true, label="original")
+        plt.legend()
+
+        # Error Rate
+        plt.subplot(2, 1, 2)
+        plt.ylabel("Error Rate")
+
+        th_line = [threshold] * len(error_rate)
+
+        plt.plot(range(len(error_rate)), error_rate, label="Error Rate")
+        plt.plot(range(len(error_rate)), th_line, label="threshold")
+        plt.legend()
+
+        plt.show()
 
     # テストデータ(CSV)を評価する関数
     def TestCSV(self, path=None):
@@ -560,83 +632,38 @@ class AnoVAE:
         xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep,error = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
+        er, ep, error = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
 
-        ShowGlaph([xt, er, ep,error])
+        self.ShowScoreGlaph([xt, er, ep, error])
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
-        from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
+        # 閾値決定
+        max_threshold = self.DecideThreshold(error)
 
-        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
-        tf_path = GetFilePathFromDialog([("異常範囲データ.csv","*.csv"),("すべてのファイル", "*")])
+        self.ShowErrorRegion(xt,error,max_threshold)
 
-        true = np.loadtxt(tf_path, dtype=bool ,encoding="utf-8-sig") #真値Ground truth
-        pred_list = np.array(error) #予測値
+        ############################# 2回目 推論 ##############################
 
-        recall_list = []
-        precision_list = []
-        F_list = []
-        max_F = 0
-        max_threshold = 0
-        for threshold in range(G.TIMESTEPS + 1):
-            pred = pred_list >= threshold
+        # テスト用csvファイルのパスを取得
+        MSGBOX.showinfo("AnoVAE", "testデータを選んでください")
+        path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
 
-            cm = confusion_matrix(true,pred)
-            tn, fp, fn, tp = cm.flatten()
-            if fp + tp == 0:
-                recall_list.append(None)
-                precision_list.append(None)
-                F_list.append(None)
-                continue
+        # テストデータセット作成
+        X_encoder, X_decoder = self.BuildData(path)
 
-            recall_list.append(recall_score(true,pred)) #検出率
-            precision_list.append(precision_score(true,pred)) #精度
-            F = f1_score(true, pred)
-            if F > max_F:
-                max_F = F
-                max_threshold = threshold
-            F_list.append(F)
+        # 再構成
+        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
-        import matplotlib.pyplot as plt
+        ############################# 評価 ##############################
 
-        # グラフ
-        plt.ylabel("")
-        plt.ylim(0, 1)
-        x_axis = range(len(recall_list))
-        plt.plot(x_axis, recall_list, label="Recall")
-        plt.plot(x_axis, precision_list, label="Precision")
-        plt.plot(x_axis, F_list, label="F-score")
-        plt.legend()
+        # 表示用のX_true
+        xt = list(np.reshape(X_encoder[0], newshape=(-1,)))
+        xt += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
-        plt.show()
+        # 評価指標計算
+        _, _, error = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        # original
-        plt.subplot(2, 1, 1)
-        plt.ylabel("Value")
-        plt.ylim(0, 1)
-
-        error_region = pred_list >= max_threshold
-
-        for i in range(len(error_region)):
-            if error_region[i] :
-                plt.axvspan(i - 0.5,i+0.5,color="#ffcdd2")
-
-        plt.plot(range(len(xt)), xt, label="original")
-        plt.legend()
-
-
-        # Error Rate
-        plt.subplot(2, 1, 2)
-        plt.ylabel("E")
-        # plt.ylim(0, 1)
-
-        th_line = [max_threshold] * len(error)
-
-        plt.plot(range(len(error)), error, label="ErrorRate")
-        plt.plot(range(len(error)),th_line,label="threshold")
-        plt.legend()
-
-        plt.show()
+        self.ShowErrorRegion(xt,error,max_threshold)
 
         return
 
