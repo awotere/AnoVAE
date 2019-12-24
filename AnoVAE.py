@@ -474,13 +474,13 @@ class AnoVAE:
         error = [0] * all_size
         for er_i,ep_i,i in zip(er[timesteps:],ep[timesteps:],range(timesteps,all_size)):
 
-            if er_i > self.THRESHOLD_ER:
+            if er_i > self.THRESHOLD_ER or ep_i > self.THRESHOLD_EP:
                 for j in range(timesteps):
                     error[i - j] += 1
 
-            if ep_i > self.THRESHOLD_EP:
-                for j in range(timesteps):
-                    error[i - j] += 1
+            #if ep_i > self.THRESHOLD_EP:
+            #    for j in range(timesteps):
+            #        error[i - j] += 1
 
         return er,ep,error
 
@@ -576,7 +576,7 @@ class AnoVAE:
         recall_list = []
         precision_list = []
         F_list = []
-        for threshold in range(G.TIMESTEPS * 2 + 1):
+        for threshold in range(G.TIMESTEPS + 1):
             pred = pred_list >= threshold
 
             cm = confusion_matrix(true,pred)
