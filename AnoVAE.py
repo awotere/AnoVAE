@@ -567,10 +567,10 @@ class AnoVAE:
 
         from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
 
-        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを異常範囲データを指定してください")
+        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
         tf_path = GetFilePathFromDialog([("異常範囲データ.csv","*.csv"),("すべてのファイル", "*")])
 
-        true = np.loadtxt(tf_path, encoding="utf-8-sig") #真値Ground truth
+        true = np.loadtxt(tf_path, dtype="bool",encoding="utf-8-sig") #真値Ground truth
         pred_list = np.array(error) #予測値
 
         recall_list = precision_list = F_list = []
