@@ -594,6 +594,7 @@ class AnoVAE:
         plt.plot(x_axis, F_list, label="F-score")
         plt.legend()
 
+        plt.show()
 
         return
 
