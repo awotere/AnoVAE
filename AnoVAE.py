@@ -570,10 +570,12 @@ class AnoVAE:
         MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
         tf_path = GetFilePathFromDialog([("異常範囲データ.csv","*.csv"),("すべてのファイル", "*")])
 
-        true = np.loadtxt(tf_path, dtype="bool",encoding="utf-8-sig") #真値Ground truth
+        true = np.loadtxt(tf_path, dtype=bool ,encoding="utf-8-sig") #真値Ground truth
         pred_list = np.array(error) #予測値
 
-        recall_list = precision_list = F_list = []
+        recall_list = []
+        precision_list = []
+        F_list = []
         for threshold in range(G.TIMESTEPS * 2 + 1):
             pred = pred_list >= threshold
 
