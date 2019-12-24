@@ -675,7 +675,7 @@ def main():
     else:
         vae.LoadWeight()
         vae.SetMINMAX(0,4095)
-        vae.SetThreshold()
+        vae.SetEREPThreshold()
 
 
     vae.TestCSV()
