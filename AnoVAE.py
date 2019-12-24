@@ -579,6 +579,14 @@ class AnoVAE:
         for threshold in range(G.TIMESTEPS * 2 + 1):
             pred = pred_list >= threshold
 
+            cm = confusion_matrix(true,pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:
+                recall_list.append(None)
+                precision_list.append(None)
+                F_list.append(None)
+                continue
+
             recall_list.append(recall_score(true,pred)) #検出率
             precision_list.append(precision_score(true,pred)) #精度
             F_list.append(f1_score(true,pred))
