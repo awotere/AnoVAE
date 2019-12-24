@@ -617,7 +617,7 @@ class AnoVAE:
 
         error_region = pred_list >= max_threshold
 
-        for i in range(error_region):
+        for i in range(len(error_region)):
             if error_region[i] :
                 plt.axvspan(i - 0.5,i+0.5,color="#ffcdd2",label="Error")
 
