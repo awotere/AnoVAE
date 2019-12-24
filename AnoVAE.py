@@ -619,9 +619,9 @@ class AnoVAE:
 
         for i in range(len(error_region)):
             if error_region[i] :
-                plt.axvspan(i - 0.5,i+0.5,color="#ffcdd2",label="Error")
+                plt.axvspan(i - 0.5,i+0.5,color="#ffcdd2")
 
-        plt.plot(range(len(true)), true, label="original")
+        plt.plot(range(len(xt)), xt, label="original")
         plt.legend()
 
 
