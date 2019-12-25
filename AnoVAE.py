@@ -563,6 +563,7 @@ class AnoVAE:
 
         # 異常領域の色塗り
         start_flag = False
+        start_pos = 0
         error_range = 0
 
         for i in range(len(error_region)):
@@ -572,12 +573,13 @@ class AnoVAE:
                     error_range += 1
                     continue
 
-                plt.axvspan(i - 0.5, (i + error_range) + 0.5, color="#ffcdd2")
+                plt.axvspan(start_pos - 0.5, (start_pos + error_range) + 0.5, color="#ffcdd2")
                 error_range = 0
                 start_flag = False
 
             if error_region[i]:
                 start_flag = True
+                start_pos = i
 
         plt.plot(range(len(true)), true, label="original")
         plt.legend()
