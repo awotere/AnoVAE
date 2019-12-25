@@ -478,7 +478,7 @@ class AnoVAE:
 
             if ep_i > self.THRESHOLD_EP :
                 for j in range(timesteps):
-                    error_p[i - j] += Square(j) * area_ratio * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
+                    error_p[i - j] += Square(j) * (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
