@@ -447,9 +447,7 @@ class AnoVAE:
                     error_r[i - j] += Triangle(j)
 
             if ep_i > self.THRESHOLD_EP:
-                for j in range(timesteps):
-                    error_p[i - j] += Square(j) * ep_i * timesteps / 2
-                    error_p[i - j] = min(error_p[i - j], timesteps / 2)
+                error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
         error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
 
