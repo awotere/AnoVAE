@@ -428,15 +428,23 @@ class AnoVAE:
         all_size = X_true.shape[0] + timesteps
         error_r = [0] * all_size
         error_p = [0] * all_size
+
+        # 三角のかたちをした関数(幅timesteps,高さ1の「▲」な形をした関数)
+        def Triangle(t):
+            slope = 1/(timesteps/2)
+            if t <= timesteps/2:
+                return t * slope
+            return 2 + t * (-slope)
+
         for er_i, ep_i, i in zip(er[timesteps:], ep[timesteps:], range(timesteps, all_size)):
 
             if er_i > self.THRESHOLD_ER :
                 for j in range(timesteps):
-                    error_r[i - j] += 1
+                    error_r[i - j] += Triangle(j)
 
             if ep_i > self.THRESHOLD_EP:
                 for j in range(timesteps):
-                    error_p[i - j] += 1
+                    error_p[i - j] += Triangle(j)
 
         error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
 
