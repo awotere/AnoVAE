@@ -121,7 +121,7 @@ class AnoVAE:
         # (None, Z_DIM) <- μ
         z_mean = Dense(G.Z_DIM, activation="linear", name='z_mean')(h)  # z_meanを出力
 
-        # (None, Z_DIM) <- σ^ (σ = exp(log(σ^/2)))
+        # (None, Z_DIM) <- σ^ (標準偏差σ = exp(log(σ^/2)))
         z_log_var = Dense(G.Z_DIM, activation="linear", name='z_log_var')(h)  # z_sigmaを出力
 
         # z導出
@@ -411,6 +411,34 @@ class AnoVAE:
 
         return md
 
+    # zを生成する前のN(mu,sigma)が、標準正規分布のkσ区間内[-k,k]になりうる確率
+    # zの次元数だけ互いに独立した正規分布 N(μ0,σ0), N(μ1,σ1), ...があるため、
+    # すべての事象が起こる確率を計算する
+    # この確率が高い→正常である可能性が高い
+    def GetSigmaScore(self, k, mu_list, sigma_list):
+
+        #   upper
+        # ∫     N(mu,sgm) の計算
+        #   lower
+        def Prob(lower, upper, mu, sgm):
+
+            import scipy
+            idx_l = (lower - mu) / np.sqrt(2) / sgm
+            idx_u = (upper - mu) / np.sqrt(2) / sgm
+
+            return 0.5 * (scipy.special.erf(idx_u) - scipy.special.erf(idx_l))
+
+        ss = []
+
+        for mu, sigma in zip(mu_list, sigma_list):
+
+            p = 1.0
+            for m, s in zip(mu, sigma):
+                p *= Prob(-k, k, m, s)
+            ss.append(1 - p)
+
+        return ss
+
     # 正常データと再構成データから異常度を表すパラメータ(ER,EP,?)を取得する関数
     def GetScore(self, X_true, X_reco, mu_list, sigma_list):
 
@@ -440,46 +468,24 @@ class AnoVAE:
         def Square(t):
             return (1/(timesteps ** 2)) * (t ** 2) # y = (1/N^2) * x^2 s.t. N = timesteps
 
+        area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
+
         for er_i, ep_i, i in zip(er[timesteps:], ep[timesteps:], range(timesteps,all_size)):
 
             if er_i > self.THRESHOLD_ER :
                 for j in range(timesteps):
                     error_r[i - j] += Triangle(j)
 
-            if ep_i > self.THRESHOLD_EP:
-                error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
+            if ep_i > self.THRESHOLD_EP :
+                for j in range(timesteps):
+                    error_p[i - j] += Square(j) * area_ratio
+            #if ep_i > self.THRESHOLD_EP:
+            #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
         error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
 
         return er, ep, error_rate
 
-    # zを生成する前のN(mu,sigma)が、標準正規分布のkσ区間内[-k,k]になりうる確率
-    # zの次元数だけ互いに独立した正規分布 N(μ0,σ0), N(μ1,σ1), ...があるため、
-    # すべての事象が起こる確率を計算する
-    # この確率が高い→正常である可能性が高い
-    def GetSigmaScore(self, k, mu_list, sigma_list):
-
-        #   upper
-        # ∫     N(mu,sgm) の計算
-        #   lower
-        def Prob(lower, upper, mu, sgm):
-
-            import scipy
-            idx_l = (lower - mu) / np.sqrt(2) / sgm
-            idx_u = (upper - mu) / np.sqrt(2) / sgm
-
-            return 0.5 * (scipy.special.erf(idx_u) - scipy.special.erf(idx_l))
-
-        ss = []
-
-        for mu, sigma in zip(mu_list, sigma_list):
-
-            p = 1.0
-            for m, s in zip(mu, sigma):
-                p *= Prob(-2.5, 2.5, m, s)
-            ss.append(1 - p)
-
-        return ss
 
     def GetErrorRateThreshold(self, error_rate):
         from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score
