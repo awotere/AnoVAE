@@ -1,11 +1,12 @@
 # VAE関係
 # ダイアログ関係
 import os
+import time
 import tkinter
 import tkinter.filedialog
 import tkinter.messagebox as MSGBOX
-import time
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pyautogui
 
@@ -15,6 +16,7 @@ root = tkinter.Tk()
 root.geometry("0x0")
 root.overrideredirect(1)
 root.withdraw()
+
 
 # メモ
 # (N) (N,) 要素数Nの一次元配列
@@ -29,6 +31,7 @@ def GetFilePathFromDialog(file_types):
 
     return file
 
+# t_SNEを用いた描画。多分使わない
 def Show_t_SNE(X):
     from sklearn.manifold import TSNE
     import matplotlib.pyplot as plt
@@ -44,9 +47,9 @@ def Show_t_SNE(X):
 
 class AnoVAE:
     # メンバ変数
-    vae = None
-    encoder = None
-    decoder = None
+    vae = None      # VAE本体
+    encoder = None  # Encoder
+    decoder = None  # Decoder
 
     load_weight_flag = False
     load_minmax_flag = False
@@ -73,7 +76,7 @@ class AnoVAE:
         X = np.loadtxt(path, encoding="utf-8-sig")
 
         # 最小値を0にして0-1に圧縮(clampはしない)
-        #clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
+        # clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
         X = np.array(list(map(lambda x: (x - self.MIN) / (self.MAX - self.MIN), X)))
 
         # 一次元配列から二次元行列に変換(None, 1)
@@ -226,8 +229,8 @@ class AnoVAE:
 
         # 学習データcsvファイルのパスを取得
         if path is None:
-            MSGBOX.showinfo("AnoVAE>Train", "学習データを選んでください")
-            path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
+            MSGBOX.showinfo("AnoVAE > Train", "学習データを選んでください")
+            path = GetFilePathFromDialog([("学習データcsv", "*.csv"), ("すべてのファイル", "*")])
             self.LoadMINMAX(path)
 
         # self.SetMINMAX(0,4095)
@@ -249,7 +252,6 @@ class AnoVAE:
 
         t = time.time() - t
 
-        import matplotlib.pyplot as plt
         # 損失の履歴をプロット
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
@@ -277,12 +279,11 @@ class AnoVAE:
         self.load_weight_flag = True
         return
 
-    def SetMINMAX(self, MIN,MAX):
+    def SetMINMAX(self, MIN, MAX):
         self.MIN = MIN
         self.MAX = MAX
         self.load_minmax_flag = True
         return
-
 
     def LoadMINMAX(self, path=None):
         if path is None:
@@ -317,18 +318,16 @@ class AnoVAE:
             MSGBOX.showinfo("AnoVAE>SetThreshould", "正常データを選んでください")
             path = GetFilePathFromDialog([("csv", "*.csv"), ("すべてのファイル", "*")])
 
-        X_encoder,X_decoder = self.BuildData(path)
+        X_encoder, X_decoder = self.BuildData(path)
 
         mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
-        er,ep,_ = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
+        er, ep, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
         self.THRESHOLD_ER = max(er)
         self.THRESHOLD_EP = max(ep)
 
         self.set_threshold_flag = True
         return
-
-
 
     # マルチスレッドでPredict
     def ThreadPredict(self, input_data, thread_size):
@@ -347,7 +346,7 @@ class AnoVAE:
         results = [[] for _ in range(thread_size)]
 
         # 別スレッドで実行する関数
-        def th_func(datas, results,id):
+        def th_func(datas, results, id):
 
             tf_X_true1, tf_X_true2 = datas
 
@@ -358,29 +357,23 @@ class AnoVAE:
             results[id] = [tf_mu_list, tf_sigma_list, tf_X_reco]
 
         # スレッドのリスト
-        th_list = [threading.Thread(target=th_func, args=[train_datas[id], results,id]) for id in range(thread_size)]
+        th_list = [threading.Thread(target=th_func, args=[train_datas[id], results, id]) for id in range(thread_size)]
 
         # スレッド処理開始
         for th in th_list:
             th.start()
 
-        start_time = time.time()
-
         # すべてのスレッドが終了するまで待機
         for th in th_list:
             th.join()
 
-        end_time = time.time()
-
-        #結果を集積させる
+        # 結果を集積させる
         mu_list = sigma_list = np.empty(shape=(0, G.Z_DIM))
         X_reco = np.empty(shape=(0, G.TIMESTEPS))
         for r in results:
             mu_list = np.concatenate([mu_list, r[0]], axis=0)
             sigma_list = np.concatenate([sigma_list, r[1]], axis=0)
             X_reco = np.concatenate([X_reco, r[2]], axis=0)
-
-        pro_time = end_time - start_time
 
         return mu_list, sigma_list, X_reco
 
@@ -409,17 +402,17 @@ class AnoVAE:
         return dkl
 
     # 原点からμのユークリッド距離（ボツ）：意味なくはないけど使えるの？
-    def GetMuDistance(self,mu_list):
+    def GetMuDistance(self, mu_list):
         from scipy.spatial import distance
         md = []
         O = np.zeros(G.Z_DIM)
         for mu in mu_list:
-            md.append(distance.euclidean(O,mu))
+            md.append(distance.euclidean(O, mu))
 
         return md
 
     # 正常データと再構成データから異常度を表すパラメータ(ER,EP,?)を取得する関数
-    def GetScore(self,X_true,X_reco,mu_list,sigma_list):
+    def GetScore(self, X_true, X_reco, mu_list, sigma_list):
 
         offset = int(G.TIMESTEPS)
         # 再構成誤差(ER)
@@ -428,29 +421,32 @@ class AnoVAE:
 
         # 分布の計算(EP)
         ep = [0] * offset
-        ep += self.GetSigmaScore(3,mu_list,np.exp(sigma_list/2))
+        ep += self.GetSigmaScore(3, mu_list, np.exp(sigma_list / 2))
 
-        # 異常度
+        # 異常度(Error Rate)
         timesteps = X_true.shape[1]
         all_size = X_true.shape[0] + timesteps
-        error = [0] * all_size
-        for er_i,ep_i,i in zip(er[timesteps:],ep[timesteps:],range(timesteps,all_size)):
+        error_r = [0] * all_size
+        error_p = [0] * all_size
+        for er_i, ep_i, i in zip(er[timesteps:], ep[timesteps:], range(timesteps, all_size)):
 
             if er_i > self.THRESHOLD_ER or ep_i > self.THRESHOLD_EP:
                 for j in range(timesteps):
-                    error[i - j] += 1
+                    error_r[i - j] += 1
 
-            #if ep_i > self.THRESHOLD_EP:
-            #    for j in range(timesteps):
-            #        error[i - j] += 1
+            if ep_i > self.THRESHOLD_EP:
+                for j in range(timesteps):
+                    error_p[i - j] += 1
 
-        return er,ep,error
+        error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
+
+        return er, ep, error_rate
 
     # zを生成する前のN(mu,sigma)が、標準正規分布のkσ区間内[-k,k]になりうる確率
     # zの次元数だけ互いに独立した正規分布 N(μ0,σ0), N(μ1,σ1), ...があるため、
     # すべての事象が起こる確率を計算する
     # この確率が高い→正常である可能性が高い
-    def GetSigmaScore(self,k,mu_list,sigma_list):
+    def GetSigmaScore(self, k, mu_list, sigma_list):
 
         #   upper
         # ∫     N(mu,sgm) の計算
@@ -465,23 +461,23 @@ class AnoVAE:
 
         ss = []
 
-        for mu,sigma in zip(mu_list,sigma_list):
+        for mu, sigma in zip(mu_list, sigma_list):
 
             p = 1.0
-            for m,s in zip(mu,sigma):
-                p *= Prob(-2.5,2.5,m,s)
-            ss.append(1-p)
+            for m, s in zip(mu, sigma):
+                p *= Prob(-2.5, 2.5, m, s)
+            ss.append(1 - p)
 
         return ss
 
-    def GetErrorRateThreshold(self,error):
-        from sklearn.metrics import f1_score,confusion_matrix,recall_score,precision_score
+    def GetErrorRateThreshold(self, error_rate):
+        from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score
 
-        MSGBOX.showinfo("AnoVAE>TestCSV()","異常範囲データを指定してください")
-        tf_path = GetFilePathFromDialog([("異常範囲データ.csv","*.csv"),("すべてのファイル", "*")])
+        MSGBOX.showinfo("AnoVAE>TestCSV()", "異常範囲データを指定してください")
+        tf_path = GetFilePathFromDialog([("異常範囲データ.csv", "*.csv"), ("すべてのファイル", "*")])
 
-        true = np.loadtxt(tf_path, dtype=bool ,encoding="utf-8-sig") #真値Ground truth
-        pred_list = np.array(error) #予測値
+        true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # 真値Ground truth
+        error_rate_np = np.array(error_rate)  # 予測値
 
         recall_list = []
         precision_list = []
@@ -489,9 +485,9 @@ class AnoVAE:
         max_F = 0
         max_threshold = 0
         for threshold in range(G.TIMESTEPS + 1):
-            pred = pred_list >= threshold
+            pred = error_rate_np >= threshold
 
-            cm = confusion_matrix(true,pred)
+            cm = confusion_matrix(true, pred)
             tn, fp, fn, tp = cm.flatten()
             if fp + tp == 0:
                 recall_list.append(None)
@@ -499,15 +495,13 @@ class AnoVAE:
                 F_list.append(None)
                 continue
 
-            recall_list.append(recall_score(true,pred)) #検出率
-            precision_list.append(precision_score(true,pred)) #精度
+            recall_list.append(recall_score(true, pred))  # 検出率
+            precision_list.append(precision_score(true, pred))  # 精度
             F = f1_score(true, pred)
             if F > max_F:
                 max_F = F
                 max_threshold = threshold
             F_list.append(F)
-
-        import matplotlib.pyplot as plt
 
         # グラフ
         plt.ylabel("")
@@ -522,9 +516,7 @@ class AnoVAE:
 
         return max_threshold
 
-    def ShowScoreGlaph(self,true,er,ep,error_rate):
-
-        import matplotlib.pyplot as plt
+    def ShowScoreGlaph(self, true, er, ep, error_rate):
 
         # original
         plt.subplot(4, 1, 1)
@@ -549,6 +541,7 @@ class AnoVAE:
 
         # Error Rate
         plt.subplot(4, 1, 4)
+        plt.xlabel("Time")
         plt.ylabel("Error Rate")
         # plt.ylim(0, 1)
         plt.plot(range(len(error_rate)), error_rate, label="ErrorRate")
@@ -556,19 +549,35 @@ class AnoVAE:
 
         plt.show()
 
-    def ShowErrorRegion(self,true,error_rate,threshold):
+        return
 
-        import matplotlib.pyplot as plt
+    def ShowErrorRegion(self, true, error_rate, threshold):
+
         # original
         plt.subplot(2, 1, 1)
         plt.ylabel("Value")
         plt.ylim(0, 1)
 
+        # Error Rateが閾値以上であるものをTrue(else False)としたBool配列を作成
         error_region = np.array(error_rate) >= threshold
 
+        # 異常領域の色塗り
+        start_flag = False
+        error_range = 0
+
         for i in range(len(error_region)):
+
+            if start_flag:
+                if error_region[i]:
+                    error_range += 1
+                    continue
+
+                plt.axvspan(i - 0.5, (i + error_range) + 0.5, color="#ffcdd2")
+                error_range = 0
+                start_flag = False
+
             if error_region[i]:
-                plt.axvspan(i - 0.5, i + 0.5, color="#ffcdd2")
+                start_flag = True
 
         plt.plot(range(len(true)), true, label="original")
         plt.legend()
@@ -577,13 +586,15 @@ class AnoVAE:
         plt.subplot(2, 1, 2)
         plt.ylabel("Error Rate")
 
-        th_line = [threshold] * len(error_rate)
+        th_line = [threshold] * len(error_rate)  # 閾値の線
 
         plt.plot(range(len(error_rate)), error_rate, label="Error Rate")
         plt.plot(range(len(error_rate)), th_line, label="threshold")
         plt.legend()
 
         plt.show()
+
+        return
 
     # テストデータ(CSV)を評価する関数
     def TestCSV(self, path=None):
@@ -596,10 +607,10 @@ class AnoVAE:
             self.LoadWeight()
         print("重みデータを読み込みました")
 
-        #閾値の読み込み
+        # 閾値の読み込み
         if not self.set_threshold_flag:
             self.SetEREPThreshold()
-        print("評価指標用の閾値の設定を行いました\n ER:{0}   EP:{1}".format(self.THRESHOLD_ER,self.THRESHOLD_EP))
+        print("評価指標用の閾値の設定を行いました\n ER:{0}   EP:{1}".format(self.THRESHOLD_ER, self.THRESHOLD_EP))
 
         # minmaxの設定
         if not self.load_minmax_flag:
@@ -628,11 +639,11 @@ class AnoVAE:
 
         # 表示用のX_true
         t = time.time()
-        true = list(np.reshape(X_encoder[0],newshape=(-1,)))
-        true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1,X_encoder.shape[0])]
+        true = list(np.reshape(X_encoder[0], newshape=(-1,)))
+        true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep, error_rate = self.GetScore(X_encoder,X_reco,mu_list,sigma_list)
+        er, ep, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
         self.ShowScoreGlaph(true, er, ep, error_rate)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
@@ -640,7 +651,7 @@ class AnoVAE:
         # 閾値決定
         error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        self.ShowErrorRegion(true,error_rate,error_threshold)
+        self.ShowErrorRegion(true, error_rate, error_threshold)
 
         ############################# 2回目 推論 ##############################
 
@@ -663,7 +674,7 @@ class AnoVAE:
         # 評価指標計算
         _, _, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowErrorRegion(true,error_rate,error_threshold)
+        self.ShowErrorRegion(true, error_rate, error_threshold)
 
         return
 
@@ -674,9 +685,8 @@ def main():
         vae.Train()
     else:
         vae.LoadWeight()
-        vae.SetMINMAX(0,4095)
+        vae.SetMINMAX(0, 4095)
         vae.SetEREPThreshold()
-
 
     vae.TestCSV()
     return
