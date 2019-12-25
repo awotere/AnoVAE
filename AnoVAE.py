@@ -478,11 +478,12 @@ class AnoVAE:
 
             if ep_i > self.THRESHOLD_EP :
                 for j in range(timesteps):
-                    error_p[i - j] = Square(j) * (timesteps/2) * (ep_i - self.THRESHOLD_EP) / (1-self.THRESHOLD_EP)
+                    error_p[i - j] += Square(j)
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
+        #error rateは調和平均
+        error_rate = [2*P*R/(P+R) for P, R in zip(error_p, error_r)]
 
         return er, ep, error_rate
 
