@@ -483,7 +483,12 @@ class AnoVAE:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
         #error rateは調和平均
-        error_rate = [2*P*R/(P+R) for P, R in zip(error_p, error_r)]
+        def HarmonicMean(a,b):
+            if a == 0 and b == 0:
+                return 0
+            return 2 * a * b /(a + b)
+
+        error_rate = [HarmonicMean(R,P) for R, P in zip(error_r, error_p)]
 
         return er, ep, error_rate
 
