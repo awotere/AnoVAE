@@ -438,7 +438,7 @@ class AnoVAE:
 
         # 二次関数
         def Square(t):
-            return (1/(timesteps ** 2)) * t ** 2 # y = (1/N^2) * x^2 as N = timesteps
+            return (1/(timesteps ** 2)) * (t ** 2) # y = (1/N^2) * x^2 s.t. N = timesteps
 
         for er_i, ep_i, i in zip(er[timesteps:], ep[timesteps:], range(timesteps, all_size)):
 
@@ -446,9 +446,10 @@ class AnoVAE:
                 for j in range(timesteps):
                     error_r[i - j] += Triangle(j)
 
-            #if ep_i > self.THRESHOLD_EP:
+        if ep_i > self.THRESHOLD_EP:
             for j in range(timesteps):
-                error_p[i - j] = Square(j) * ep_i * timesteps/2
+                error_p[i - j] += Square(j) * ep_i * timesteps/2
+                error_p[i - j] = min(error_p[i - j],timesteps/2)
 
         error_rate = [max(P, R) for P, R in zip(error_p, error_r)]
 
