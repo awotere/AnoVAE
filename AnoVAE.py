@@ -452,7 +452,7 @@ class AnoVAE:
 
         # 異常度(Error Rate)
         timesteps = X_true.shape[1]
-        all_size = X_true.shape[0] + timesteps
+        all_size = X_true.shape[0] + timesteps - 1
         error_r = [0] * all_size
         error_p = [0] * all_size
 
