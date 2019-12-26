@@ -322,7 +322,7 @@ class AnoVAE:
 
         mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
-        er, ep, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        er, ep, _, _,_ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
         self.THRESHOLD_ER = max(er)
         self.THRESHOLD_EP = max(ep)
 
@@ -368,7 +368,8 @@ class AnoVAE:
             th.join()
 
         # 結果を集積させる
-        mu_list = sigma_list = np.empty(shape=(0, G.Z_DIM))
+        mu_list = np.empty(shape=(0, G.Z_DIM))
+        sigma_list = np.empty(shape=(0, G.Z_DIM))
         X_reco = np.empty(shape=(0, G.TIMESTEPS))
         for r in results:
             mu_list = np.concatenate([mu_list, r[0]], axis=0)
@@ -483,14 +484,14 @@ class AnoVAE:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
         #error rateは調和平均
-        def HarmonicMean(a,b):
-            if a == 0 and b == 0:
-                return 0
-            return 2 * a * b /(a + b)
+        #def HarmonicMean(a,b):
+        #    if a == 0 and b == 0:
+        #        return 0
+        #    return 2 * a * b /(a + b)
 
-        error_rate = [HarmonicMean(R,P) for R, P in zip(error_r, error_p)]
+        error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
 
-        return er, ep, error_rate
+        return er, ep, error_rate, error_r, error_p
 
 
     def GetErrorRateThreshold(self, error_rate):
@@ -539,27 +540,29 @@ class AnoVAE:
 
         return max_threshold
 
-    def ShowScoreGlaph(self, true, er, ep, error_rate):
+    def ShowScoreGlaph(self, true, er, ep, error_rate, error_r, error_p):
+
+        x_axis = range(len(true))
 
         # original
         plt.subplot(4, 1, 1)
         plt.ylabel("Value")
         plt.ylim(0, 1)
-        plt.plot(range(len(true)), true, label="original")
+        plt.plot(x_axis, true, label="original")
         plt.legend()
 
         # Reconstruction Error
         plt.subplot(4, 1, 2)
         plt.ylabel("ER")
         plt.ylim(0, 50)
-        plt.plot(range(len(er)), er, label="Reconstruction Error")
+        plt.plot(x_axis, er, label="Reconstruction Error")
         plt.legend()
 
         # Probability Error
         plt.subplot(4, 1, 3)
         plt.ylabel("EP")
         plt.ylim(0, 1)
-        plt.plot(range(len(ep)), ep, label="Probability Error")
+        plt.plot(x_axis, ep, label="Probability Error")
         plt.legend()
 
         # Error Rate
@@ -567,7 +570,9 @@ class AnoVAE:
         plt.xlabel("Time")
         plt.ylabel("Error Rate")
         # plt.ylim(0, 1)
-        plt.plot(range(len(error_rate)), error_rate, label="ErrorRate")
+        plt.plot(x_axis, error_r, label="from ER")
+        plt.plot(x_axis, error_p, label="from EP")
+        plt.plot(x_axis, error_rate, label="Error Rate")
         plt.legend()
 
         plt.show()
@@ -668,9 +673,9 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        er, ep, error_rate,error_r,error_p = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowScoreGlaph(true, er, ep, error_rate)
+        self.ShowScoreGlaph(true, er, ep, error_rate,error_r,error_p)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
@@ -697,7 +702,7 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        _, _, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        _, _, error_rate,_,_ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
         self.ShowErrorRegion(true, error_rate, error_threshold)
 
