@@ -247,7 +247,7 @@ class AnoVAE:
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=4)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=7)])
 
         t = time.time() - t
 
