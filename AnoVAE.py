@@ -443,7 +443,7 @@ class AnoVAE:
     # 正常データと再構成データから異常度を表すパラメータ(ER,EP,?)を取得する関数
     def GetScore(self, X_true, X_reco, mu_list, sigma_list):
 
-        offset = int(G.TIMESTEPS)
+        offset = int(G.TIMESTEPS-1)
         # 再構成誤差(ER)
         er = [0] * offset
         er += self.GetReconstructionError(X_true, X_reco)
