@@ -468,7 +468,7 @@ class AnoVAE:
 
         # 二次関数
         def Square(t):
-            return (1/(timesteps ** 2)) * (t ** 2) # y = (1/N^2) * x^2 s.t. N = timesteps
+            return (1/(timesteps ** 2)) * ((timesteps - t) ** 2) # y = (1/N^2) * (N-x)^2 s.t. N = timesteps
 
         area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
 
@@ -562,7 +562,7 @@ class AnoVAE:
         # Probability Error
         plt.subplot(4, 1, 3)
         plt.ylabel("EP")
-        plt.ylim(0, 1)
+        #plt.ylim(0, 1)
         plt.plot(x_axis, ep, label="Probability Error")
         plt.legend()
 
