@@ -83,7 +83,7 @@ class AnoVAE:
         X = np.reshape(X, newshape=(-1))
 
         # 全サンプル数(入力csvのデータ数)
-        sample_size = X.shape[0] - G.TIMESTEPS
+        sample_size = X.shape[0] - G.TIMESTEPS + 1
 
         # X_encoder: encoderに入れるデータセット
         X_encoder = np.zeros(shape=(sample_size, G.TIMESTEPS))
