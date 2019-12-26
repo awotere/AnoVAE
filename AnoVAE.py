@@ -113,8 +113,8 @@ class AnoVAE:
         encoder_inputs = Input(shape=(G.TIMESTEPS, 1), name="encoder_inputs")
 
         # (None, Z_DIM) <- h
-        _, h_forw = GRU(G.Z_DIM, activation="linear", return_state=True, name="encoder_GRU_forward")(encoder_inputs)
-        _, h_back = GRU(G.Z_DIM, activation="linear", return_state=True, go_backwards=True, name="encoder_GRU_backward")(encoder_inputs)
+        _, h_forw = GRU(G.Z_DIM, return_state=True, name="encoder_GRU_forward")(encoder_inputs)
+        _, h_back = GRU(G.Z_DIM, return_state=True, go_backwards=True, name="encoder_GRU_backward")(encoder_inputs)
 
         h = concatenate([h_forw, h_back], axis=1)
 
