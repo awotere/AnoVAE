@@ -96,7 +96,7 @@ class AnoVAE:
         # kerasに渡す形(sample,timestep,features)に変換
         X_encoder = np.expand_dims(X_encoder, axis=2)
 
-        return X_encoder, X[G.TIMESTEPS:]
+        return X_encoder, X[G.TIMESTEPS - 1 :]
 
     # ネットワーク作成
     def BuildEncoder(self):
