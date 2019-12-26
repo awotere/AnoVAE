@@ -233,6 +233,7 @@ class AnoVAE:
             path = GetFilePathFromDialog([("学習データcsv", "*.csv"), ("すべてのファイル", "*")])
             self.LoadMINMAX(path)
 
+        self.SetMINMAX(0,4095)
         # 学習データを作成
         encoder_inputs, decoder_inputs = self.BuildData(path)
         print("Trainデータ読み込み完了\n{0}".format(path))
@@ -281,6 +282,8 @@ class AnoVAE:
         self.MIN = MIN
         self.MAX = MAX
         self.load_minmax_flag = True
+
+        print("SetMINMAX")
         return
 
     def LoadMINMAX(self, path=None):
