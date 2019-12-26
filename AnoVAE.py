@@ -233,8 +233,6 @@ class AnoVAE:
             path = GetFilePathFromDialog([("学習データcsv", "*.csv"), ("すべてのファイル", "*")])
             self.LoadMINMAX(path)
 
-        # self.SetMINMAX(0,4095)
-
         # 学習データを作成
         encoder_inputs, decoder_inputs = self.BuildData(path)
         print("Trainデータ読み込み完了\n{0}".format(path))
@@ -248,7 +246,7 @@ class AnoVAE:
                                batch_size=G.BATCH_SIZE,
                                shuffle=True,
                                validation_split=0.1,
-                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=7)])
+                               callbacks=[TensorBoard(log_dir="./train_log/"), EarlyStopping(patience=4)])
 
         t = time.time() - t
 
@@ -711,11 +709,12 @@ class AnoVAE:
 
 def main():
     vae = AnoVAE()
+    vae.SetMINMAX(0, 4095)
+
     if MSGBOX.askyesno("AnoVAE", "AnoVAEに学習させますか？"):
         vae.Train()
     else:
         vae.LoadWeight()
-        vae.SetMINMAX(0, 4095)
         vae.SetEREPThreshold()
 
     vae.TestCSV()
