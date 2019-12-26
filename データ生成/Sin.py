@@ -11,7 +11,7 @@ RANGE = 5000 #生成レンジ
 #設定
 T = 1000                 #周期
 A = 1024                 #振幅 (必ず1024未満にするべし)
-domain_flag = False     #ドメインを使うか
+domain_flag = True     #ドメインを使うか
 #/設定
 
 array = [0]*RANGE
@@ -22,9 +22,11 @@ if domain_flag:
     d_str = "_TestDomain"
 
 #file = open("./data/SinAno(T{0}_A{1}{2}).csv".format(T,A,d_str),"w",newline="")
-file = open("./random_.csv","w",newline="")
+file = open("./SinTestDomain2.csv","w",newline="")
 writer = csv.writer(file)
 
+file2 = open("./SineTestDomainAnswer.csv","w",newline="")
+writer2 = csv.writer(file2)
 
 
 def RandomDomain():
@@ -35,18 +37,21 @@ def RandomDomain():
         new_ano_scale = random.uniform(0.5,2)
         domain.UpdateDomain(new_dom_range,new_ano_start,new_ano_range,new_ano_scale)
 
+
+
     return int(domain.GetValue(t) * A)
 
 def TestDomain():
     if domain.UpdateCheck():
 
-        ano_range = 50
+        ano_range = TestDomain.range_list[TestDomain.phase]
+
         start_pos = 150 - ano_range / 2
 
         new_dom_range = int(500)
         new_ano_start = int(start_pos)
         new_ano_range = int(ano_range)
-        new_ano_scale = TestDomain.scale_list[TestDomain.phase]
+        new_ano_scale = 1
         domain.UpdateDomain(new_dom_range,new_ano_start,new_ano_range,new_ano_scale)
 
         TestDomain.phase += 1
@@ -57,13 +62,17 @@ TestDomain.range_list = [10,10,20,20,50,50,100,100,200,200]
 TestDomain.scale_list = [0.25,0.25,0.5,0.5,0.75,0.75,1,1,1.25,1.25]
 
 for t in range(RANGE):
-    #sin: y = int(np.sin( t / T * 2 * np.pi) * A + 2047)
-    y = int(500*random.uniform(-1,1))+2047
+    y = int(np.sin( t / T * 2 * np.pi) * A + 2047)
+    #y = int(500*random.uniform(-1,1))+2047
 
     if domain_flag:
-        y += RandomDomain()
+        u = TestDomain()
+        writer2.writerow([int(u != 0)])
+
+        y += u
 
     writer.writerow([y])
 
 print("おわり")
 file.close()
+file2.close()

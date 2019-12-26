@@ -60,6 +60,7 @@ class AnoVAE:
 
     THRESHOLD_ER = 0
     THRESHOLD_EP = 0
+    THRESHOLD_HM = 0
 
     # コンストラクタ
     def __init__(self):
@@ -323,9 +324,11 @@ class AnoVAE:
 
         mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
-        er, ep, _, _,_ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
-        self.THRESHOLD_ER = max(er)
-        self.THRESHOLD_EP = max(ep)
+        _, _, eg, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+
+        #self.THRESHOLD_ER = max(er)
+        #self.THRESHOLD_EP = max(ep)
+        self.THRESHOLD_HM = max(eg)
 
         self.set_threshold_flag = True
         return
@@ -470,33 +473,56 @@ class AnoVAE:
         def Square(t):
             return (1/(timesteps ** 2)) * ((timesteps - t) ** 2) # y = (1/N^2) * (N-x)^2 s.t. N = timesteps
 
+        def SpikeSquare(t):
+            if t <= timesteps/2:
+                return ((1/(timesteps/2)) ** 2) * (t ** 2)
+            return ((1/(timesteps/2)) ** 2) * ((t-timesteps) ** 2)
+
         area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
 
-        for er_i, ep_i, i in zip(er[timesteps:], ep[timesteps:], range(timesteps,all_size)):
+        #算術平均
+        def ArithmeticMean(a,b):
+            return (a+b)/2
+        #相乗平均
+        def GeometricMean(a,b):
+            return np.sqrt(a*b)
+        #調和平均
+        def HarmonicMean(a,b):
+            if a == 0 and b == 0:
+                return 0
+            return 2 * a * b /(a + b)
 
-            if er_i > self.THRESHOLD_ER :
-                for j in range(timesteps):
-                    error_r[i - j] += Triangle(j)
+        eg = [GeometricMean(R,P) for R,P in zip(er,ep)]
 
-            if ep_i > self.THRESHOLD_EP :
-                for j in range(timesteps):
-                    error_p[i - j] += Square(j) * area_ratio
+        #for er_i, ep_i, i in zip(er[timesteps-1:], ep[timesteps-1:], range(timesteps-1,all_size)):
+
+            #if er_i > self.THRESHOLD_ER :
+            #    for j in range(timesteps):
+            #        error_r[i - j] += Triangle(j)
+
+            #if ep_i > self.THRESHOLD_EP :
+            #    for j in range(timesteps):
+            #        error_p[i - j] += Square(j) * area_ratio
+
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        #error rateは調和平均
-        #def HarmonicMean(a,b):
-        #    if a == 0 and b == 0:
-        #        return 0
-        #    return 2 * a * b /(a + b)
+        error_rate = [0]*all_size
 
-        error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
+        for ehm_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
+            if ehm_i > self.THRESHOLD_HM :
+                for j in range(timesteps):
+                    error_rate[i - j] += SpikeSquare(j)
 
-        return er, ep, error_rate, error_r, error_p
+
+
+        #error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
+
+        return er, ep, eg, error_rate
 
 
     def GetErrorRateThreshold(self, error_rate):
-        from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score
+        from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
 
         MSGBOX.showinfo("AnoVAE>TestCSV()", "異常範囲データを指定してください")
         tf_path = GetFilePathFromDialog([("異常範囲データ.csv", "*.csv"), ("すべてのファイル", "*")])
@@ -509,6 +535,7 @@ class AnoVAE:
         F_list = []
         max_F = 0
         max_threshold = 0
+        accuracy = 0
         for threshold in range(G.TIMESTEPS + 1):
             pred = error_rate_np >= threshold
 
@@ -526,8 +553,11 @@ class AnoVAE:
             if F > max_F:
                 max_F = F
                 max_threshold = threshold
+                accuracy = accuracy_score(true,pred)
+
             F_list.append(F)
 
+        print("accuracy = {0}".format(accuracy))
         # グラフ
         plt.ylabel("")
         plt.ylim(0, 1)
@@ -541,38 +571,43 @@ class AnoVAE:
 
         return max_threshold
 
-    def ShowScoreGlaph(self, true, er, ep, error_rate, error_r, error_p):
+    def ShowScoreGlaph(self, true, er, ep,ehm, error_rate):
 
         x_axis = range(len(true))
 
         # original
-        plt.subplot(4, 1, 1)
+        plt.subplot(5, 1, 1)
         plt.ylabel("Value")
         plt.ylim(0, 1)
         plt.plot(x_axis, true, label="original")
         plt.legend()
 
         # Reconstruction Error
-        plt.subplot(4, 1, 2)
+        plt.subplot(5, 1, 2)
         plt.ylabel("ER")
         plt.ylim(0, 50)
         plt.plot(x_axis, er, label="Reconstruction Error")
         plt.legend()
 
         # Probability Error
-        plt.subplot(4, 1, 3)
+        plt.subplot(5, 1, 3)
         plt.ylabel("EP")
         #plt.ylim(0, 1)
         plt.plot(x_axis, ep, label="Probability Error")
         plt.legend()
 
+        # ehm
+        plt.subplot(5, 1, 4)
+        plt.ylabel("ehm")
+        #plt.ylim(0, 1)
+        plt.plot(x_axis, ehm, label="Harmonic Error")
+        plt.legend()
+
         # Error Rate
-        plt.subplot(4, 1, 4)
+        plt.subplot(5, 1, 5)
         plt.xlabel("Time")
         plt.ylabel("Error Rate")
         # plt.ylim(0, 1)
-        plt.plot(x_axis, error_r, label="from ER")
-        plt.plot(x_axis, error_p, label="from EP")
         plt.plot(x_axis, error_rate, label="Error Rate")
         plt.legend()
 
@@ -674,9 +709,9 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep, error_rate,error_r,error_p = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        er, ep,eg, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowScoreGlaph(true, er, ep, error_rate,error_r,error_p)
+        self.ShowScoreGlaph(true, er, ep,eg, error_rate)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
@@ -703,7 +738,7 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        _, _, error_rate,_,_ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        _, _, _,error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
         self.ShowErrorRegion(true, error_rate, error_threshold)
 
