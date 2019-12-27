@@ -524,7 +524,7 @@ class AnoVAE:
             x_reco = np.reshape(x_reco, newshape=(-1,))
             sub.append(list([abs(t-r) for t,r in zip(x_true,x_reco)]))
 
-        error_wave = [] * all_size
+        error_wave = [0] * all_size
         for s,i in zip(sub,range(timesteps-1,all_size)):
             for j in range(timesteps):
                 error_wave[i-j] += s[j]
