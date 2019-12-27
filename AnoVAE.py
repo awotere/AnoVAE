@@ -522,7 +522,7 @@ class AnoVAE:
         for x_true, x_reco in zip(X_true, X_reco):
             x_true = np.reshape(x_true, newshape=(-1,))
             x_reco = np.reshape(x_reco, newshape=(-1,))
-            sub.append([[abs(t-r) for t,r in zip(x_true,x_reco)]])
+            sub.append(list([abs(t-r) for t,r in zip(x_true,x_reco)]))
 
         error_wave = [] * all_size
         for s,i in zip(sub,range(timesteps-1,all_size)):
