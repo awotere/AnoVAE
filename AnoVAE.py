@@ -527,7 +527,7 @@ class AnoVAE:
         error_wave = [] * all_size
         for s,i in zip(sub,range(timesteps-1,all_size)):
             for j in range(timesteps):
-                error_wave[i-j] += sub[j]
+                error_wave[i-j] += s[j]
 
         for i in range(all_size):
             if i < timesteps:
