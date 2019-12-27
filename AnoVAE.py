@@ -509,11 +509,11 @@ class AnoVAE:
 
         error_rate = [0]*all_size
 
-        for ehm_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
-            if ehm_i > self.THRESHOLD_HM :
-                for j in range(timesteps):
-                    error_rate[i - j] += SpikeSquare(j)
-
+        for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
+            if eg_i == 0:
+                error_rate[i] = eg_i
+                continue
+            error_rate[i] = (eg_i + error_rate[i]) / 2
 
 
         #error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
