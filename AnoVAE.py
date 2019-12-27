@@ -531,11 +531,11 @@ class AnoVAE:
 
         for i in range(all_size):
             if i < timesteps:
-                error_wave /= i + 1
+                error_wave[i] /= i + 1
             elif i < all_size-timesteps:
-                error_wave /= timesteps
+                error_wave[i] /= timesteps
             else:
-                error_wave /= all_size - i
+                error_wave[i] /= all_size - i
 
         return er, ep, eg, error_wave
 
