@@ -518,7 +518,26 @@ class AnoVAE:
 
         #error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
 
-        return er, ep, eg, error_rate
+        sub = []
+        for x_true, x_reco in zip(X_true, X_reco):
+            x_true = np.reshape(x_true, newshape=(-1,))
+            x_reco = np.reshape(x_reco, newshape=(-1,))
+            sub.append([abs(t-r) for t,r in zip(x_true,x_reco)])
+
+        error_wave = [] * all_size
+        for s,i in zip(sub,range(timesteps-1,all_size)):
+            for j in range(timesteps):
+                error_wave[i-j] += sub[j]
+
+        for i in range(all_size):
+            if i < timesteps:
+                error_wave /= i + 1
+            elif i < all_size-timesteps:
+                error_wave /= timesteps
+            else:
+                error_wave /= all_size - i
+
+        return er, ep, eg, error_wave
 
 
     def GetErrorRateThreshold(self, error_rate):
