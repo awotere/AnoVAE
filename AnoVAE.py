@@ -556,7 +556,7 @@ class AnoVAE:
         max_threshold = 0
         accuracy = 0
         error_rate_max = max(error_rate)
-        for threshold in range(G.TIMESTEPS + 1):
+        for threshold in range(0,max_threshold,max_threshold/G.TIMESTEPS):
             threshold /= error_rate_max
             pred = error_rate_np >= threshold
 
