@@ -389,7 +389,7 @@ class AnoVAE:
         re = []
         for x_true, x_reco in zip(X_true, X_reco):
             x_true = np.reshape(x_true, newshape=(-1,))
-            re.append(distance.cityblock(x_true, x_reco))
+            re.append(distance.cityblock(x_true, x_reco)/G.TIMESTEPS)
 
         return re
 
@@ -507,37 +507,37 @@ class AnoVAE:
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        error_rate = [0]*all_size
+        filter_sq = [Square(n) for n in range(timesteps)]
+        error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
-        for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
-            if eg_i == 0:
-                error_rate[i] = eg_i
-                continue
-            error_rate[i] = (eg_i + error_rate[i]) / 2
+        #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
+        #        error_rate[i] = eg_i
+        #        continue
+        #    error_rate[i] = (eg_i + error_rate[i]) / 2
 
 
         #error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
 
-        sub = []
-        for x_true, x_reco in zip(X_true, X_reco):
-            x_true = np.reshape(x_true, newshape=(-1,))
-            x_reco = np.reshape(x_reco, newshape=(-1,))
-            sub.append(list([abs(t-r) for t,r in zip(x_true,x_reco)]))
+        #sub = []
+        #for x_true, x_reco in zip(X_true, X_reco):
+        #    x_true = np.reshape(x_true, newshape=(-1,))
+        #    x_reco = np.reshape(x_reco, newshape=(-1,))
+        #    sub.append(list([abs(t-r) for t,r in zip(x_true,x_reco)]))
 
-        error_wave = [0] * all_size
-        for s,i in zip(sub,range(timesteps-1,all_size)):
-            for j in range(timesteps):
-                error_wave[i-j] += s[j]
+        #error_wave = [0] * all_size
+        #for s,i in zip(sub,range(timesteps-1,all_size)):
+        #    for j in range(timesteps):
+        #        error_wave[i-j] += s[j]
 
-        for i in range(all_size):
-            if i < timesteps:
-                error_wave[i] /= i + 1
-            elif i < all_size-timesteps:
-                error_wave[i] /= timesteps
-            else:
-                error_wave[i] /= all_size - i
+        #for i in range(all_size):
+        #    if i < timesteps:
+        #        error_wave[i] /= i + 1
+        #    elif i < all_size-timesteps:
+        #        error_wave[i] /= timesteps
+        #    else:
+        #        error_wave[i] /= all_size - i
 
-        return er, ep, eg, error_wave
+        return er, ep, eg, error_rate
 
 
     def GetErrorRateThreshold(self, error_rate):
@@ -619,7 +619,7 @@ class AnoVAE:
         plt.subplot(5, 1, 4)
         plt.ylabel("ehm")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, ehm, label="Harmonic Error")
+        plt.plot(x_axis, ehm, label="Geometric mean")
         plt.legend()
 
         # Error Rate
