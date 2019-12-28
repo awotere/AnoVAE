@@ -476,7 +476,12 @@ class AnoVAE:
         def SpikeSquare(t):
             if t <= timesteps/2:
                 return ((1/(timesteps/2)) ** 2) * (t ** 2)
-            return ((1/(timesteps/2)) ** 2) * ((t-timesteps) ** 2)
+            return ((4/(timesteps)) ** 2) * ((t-timesteps) ** 2)
+
+        def EdgeSquare(t):
+            if t <= timesteps/2:
+                return -((4/(timesteps)) ** 2) * ((t-timesteps/2) ** 2)
+            return ((4/(timesteps)) ** 2) * ((t-timesteps/2) ** 2)
 
         area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
 
@@ -494,6 +499,7 @@ class AnoVAE:
 
         eg = [GeometricMean(R,P) for R,P in zip(er,ep)]
 
+
         #for er_i, ep_i, i in zip(er[timesteps-1:], ep[timesteps-1:], range(timesteps-1,all_size)):
 
             #if er_i > self.THRESHOLD_ER :
@@ -507,8 +513,8 @@ class AnoVAE:
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        #filter_sq = [Square(n) for n in range(timesteps)]
-        #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
+        filter_sq = [EdgeSquare(n) for n in range(timesteps)]
+        error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
         #        error_rate[i] = eg_i
@@ -537,7 +543,7 @@ class AnoVAE:
         #    else:
         #        error_wave[i] /= all_size - i
 
-        return er, ep, eg, eg
+        return er, ep, eg, error_rate
 
 
     def GetErrorRateThreshold(self, error_rate):
