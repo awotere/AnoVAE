@@ -507,8 +507,8 @@ class AnoVAE:
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        filter_sq = [Square(n) for n in range(timesteps)]
-        error_rate = np.convolve(eg[timesteps-1:],filter_sq)
+        #filter_sq = [Square(n) for n in range(timesteps)]
+        #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
         #        error_rate[i] = eg_i
@@ -537,7 +537,7 @@ class AnoVAE:
         #    else:
         #        error_wave[i] /= all_size - i
 
-        return er, ep, eg, error_rate
+        return er, ep, eg, eg
 
 
     def GetErrorRateThreshold(self, error_rate):
@@ -555,7 +555,9 @@ class AnoVAE:
         max_F = 0
         max_threshold = 0
         accuracy = 0
+        error_rate_max = max(error_rate)
         for threshold in range(G.TIMESTEPS + 1):
+            threshold /= error_rate_max
             pred = error_rate_np >= threshold
 
             cm = confusion_matrix(true, pred)
@@ -604,7 +606,7 @@ class AnoVAE:
         # Reconstruction Error
         plt.subplot(5, 1, 2)
         plt.ylabel("ER")
-        plt.ylim(0, 50)
+        #plt.ylim(0, 1)
         plt.plot(x_axis, er, label="Reconstruction Error")
         plt.legend()
 
