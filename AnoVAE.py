@@ -551,6 +551,7 @@ class AnoVAE:
         tf_path = GetFilePathFromDialog([("異常範囲データ.csv", "*.csv"), ("すべてのファイル", "*")])
 
         true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
+        true = true[G.TIMESTEPS-1:]
         #最適化する関数
         recall_list = []
         precision_list = []
@@ -558,7 +559,7 @@ class AnoVAE:
 
         def Loss(prominence):
             pred,_ = self.FindError(eg,prominence=prominence)
-            pred = [False]*(G.TIMESTEPS - 1) + pred
+
             #混合行列
             cm = confusion_matrix(true, pred)
             tn, fp, fn, tp = cm.flatten()
