@@ -724,8 +724,7 @@ class AnoVAE:
         plt.ylabel("EG")
 
         eg += offset
-        for peak_data in peaks_data:
-            peak_x,l_base,r_index,prominence = peak_data
+        for peak_x,l_base,r_index,prominence in zip(peaks_data[0],peaks_data[1],peaks_data[2],peaks_data[3]):
             peak_x += len(offset)
             l_base += len(offset)
             r_index += len(offset)
