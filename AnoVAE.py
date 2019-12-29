@@ -674,7 +674,6 @@ class AnoVAE:
         peaks = [peak + len(offset) for peak in peaks_data[0]]
         l_bases = [lb + len(offset) for lb in peaks_data[1]]
         r_bases = [rb + len(offset) for rb in peaks_data[2]]
-        prominences = peaks_data[3]
 
         # eg[index]
         eg_peaks = [eg[peak] for peak in peaks]
@@ -684,12 +683,14 @@ class AnoVAE:
         # plot
         from matplotlib.markers import CARETDOWN
         plt.plot(peaks, eg_peaks, marker=CARETDOWN, markersize=10, color="red",label="peak",linestyle="None")             # ▼ピーク位置
-        plt.vlines(peaks, ymin=eg_r_bases, ymax=eg_peaks, color="orange",label="prominence",lw=3)                        # prominence
-        plt.vlines(peaks, ymin=eg_l_bases, ymax=eg_r_bases, color="orange",linestyles="--",lw=3)                       # l_base 〜 r_base
-        plt.hlines([eg[lb] for lb in l_bases], xmin=l_bases, xmax=peaks, color="green",lw=3)   # l_base
-        plt.hlines([eg[rb] for rb in r_bases], xmin=peaks, xmax=r_bases, color="lime",lw=3)   # r_base
+        plt.vlines(peaks, ymin=eg_r_bases, ymax=eg_peaks, color="orange",label="prominence",lw=2)                        # prominence
+        plt.vlines(peaks, ymin=eg_l_bases, ymax=eg_r_bases, color="orange",linestyles="--",lw=2)                       # l_base 〜 r_base
+        plt.hlines(eg_l_bases, xmin=l_bases, xmax=peaks, color="green",lw=2)   # l_base
+        plt.hlines(eg_r_bases, xmin=peaks, xmax=r_bases, color="lime",lw=2)   # r_base
 
         plt.plot(x_axis, eg, label="EG")
+        plt.hlines([self.THRESHOLD_EG for _ in range(len(true))], xmin=0, xmax=len(true), color="purple",linestyles="--", lw=2,label="threshold")  # threshold
+        plt.xlabel("time")
         plt.legend()
 
         plt.show()
