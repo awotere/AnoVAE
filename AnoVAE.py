@@ -520,14 +520,15 @@ class AnoVAE:
                 # 混合行列
                 cm = confusion_matrix(true, pred)
                 tn, fp, fn, tp = cm.flatten()
-                if fp + tp == 0: return 0  # エラー処理
+                if fp + tp == 0: continue  # エラー処理
 
                 print("({0},{1})".format(i,j))
                 Z[i][j] = f1_score(true, pred)
 
 
-        plt.imshow(Z,interpolation="nearest",cmap="jet")
-        #ax.clabel(CS,fmt="%1.1f",fontsize=14)
+        #plt.imshow(Z,interpolation="nearest",cmap="jet")
+        cont = plt.contour(X, Y, Z)
+        cont.clabel(fmt="%1.1f",fontsize=14)
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
         plt.show()
