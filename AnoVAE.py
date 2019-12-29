@@ -504,7 +504,6 @@ class AnoVAE:
         x_axis = np.arange(0,max_eg,max_eg/div)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
-        point_list = np.array([X.ravel(),Y.ravel()]).T
 
         Z = np.zeros(shape=(div,div))
 
@@ -523,10 +522,14 @@ class AnoVAE:
                 tn, fp, fn, tp = cm.flatten()
                 if fp + tp == 0: return 0  # エラー処理
 
+                print("({0},{1})".format(i,j))
                 Z[i][j] = f1_score(true, pred)
 
         cont = plt.contour(X,Y,Z,levels=[0.2,0.4,0.6,0.8])
         cont.clabel(fmt="%1.1f",fontsize=14)
+        plt.xlabel("prominence low")
+        plt.ylabel("prominence lhigh")
+        plt.show()
 
         return bp.x
 
