@@ -674,7 +674,9 @@ class AnoVAE:
         plt.subplot(2, 1, 1)
         plt.ylabel("Value")
         plt.ylim(0, 1)
-        plt.axvspan(start_pos_list,end_pos_list, color="#ffcdd2",label="error")
+
+        for start,end in zip(start_pos_list,end_pos_list):
+            plt.axvspan(start,end, color="#ffcdd2")
         plt.plot(x_axis, true, label="original")
         plt.legend()
 
