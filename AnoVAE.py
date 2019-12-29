@@ -702,7 +702,7 @@ class AnoVAE:
         # 閾値の読み込み
         if not self.set_threshold_flag:
             self.SetEREPThreshold()
-        print("評価指標用の閾値の設定を行いました\n ER:{0}   EP:{1}".format(self.THRESHOLD_ER, self.THRESHOLD_EP))
+        print("評価指標用の閾値の設定を行いました\n EG{0}".format(self.THRESHOLD_EG))
 
         # minmaxの設定
         if not self.load_minmax_flag:
