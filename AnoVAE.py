@@ -510,7 +510,7 @@ class AnoVAE:
         #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
         from scipy.signal import savgol_filter
-        eg = list(savgol_filter(G_mean,window_length=15,polyorder=5))
+        eg = list(savgol_filter(G_mean,window_length=21,polyorder=7))
         #rror_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
@@ -633,9 +633,10 @@ class AnoVAE:
             peak_x_list.append(peak)
             prominence_list.append(prom)
             l_index_list.append(l_base)
-            r_index = min(peak + (peak - l_base),len(pred)-1)
-            r_index_list.append(r_index)
-            for i in range(l_base, r_index + 1):
+            r_index_list.append(r_base)
+            #r_index = min(peak + (peak - l_base),len(pred)-1)
+            #r_index_list.append(r_index)
+            for i in range(l_base, r_base + 1):
                 pred[i] = True
 
         return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
