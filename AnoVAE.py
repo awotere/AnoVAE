@@ -505,11 +505,11 @@ class AnoVAE:
         from scipy.signal import find_peaks
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
-        d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
+        #d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks, properties = find_peaks(eg, height=h, distance=d,wlen=wlen ,prominence=prominence)
+        peaks, properties = find_peaks(eg, height=h, wlen=wlen ,prominence=prominence)
 
         # Error特定(ピークの左端を利用する)
         peak_x_list = []
@@ -526,12 +526,6 @@ class AnoVAE:
             #r_index_list.append(r_index)
             for i in range(l_base, r_base + 1):
                 pred[i] = True
-
-        # Error特定(閾値)
-        error_th = np.array(eg) > self.THRESHOLD_EG
-
-        # 積集合
-        pred = [P and T for P,T in zip(pred,error_th)]
 
         return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
 
