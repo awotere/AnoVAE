@@ -683,11 +683,11 @@ class AnoVAE:
 
         # plot
         from matplotlib.markers import CARETDOWN
-        plt.plot(peaks, eg_peaks, marker=CARETDOWN, markersize=10, color="red",label="peak")             # ▼ピーク位置
-        plt.vlines(peaks, ymin=eg_r_bases, ymax=eg_peaks, color="orange")                        # prominence
-        plt.vlines(peaks, ymin=eg_l_bases, ymax=eg_r_bases, color="orange")                       # l_base 〜 r_base
-        plt.hlines([eg[lb] for lb in l_bases], xmin=l_bases, xmax=peaks, color="green")   # l_base
-        plt.hlines([eg[rb] for rb in r_bases], xmin=peaks, xmax=r_bases, color="lime")   # r_base
+        plt.plot(peaks, eg_peaks, marker=CARETDOWN, markersize=10, color="red",label="peak",linestyle="None")             # ▼ピーク位置
+        plt.vlines(peaks, ymin=eg_r_bases, ymax=eg_peaks, color="orange",label="prominence",lw=3)                        # prominence
+        plt.vlines(peaks, ymin=eg_l_bases, ymax=eg_r_bases, color="orange",linestyles="--",lw=3)                       # l_base 〜 r_base
+        plt.hlines([eg[lb] for lb in l_bases], xmin=l_bases, xmax=peaks, color="green",lw=3)   # l_base
+        plt.hlines([eg[rb] for rb in r_bases], xmin=peaks, xmax=r_bases, color="lime",lw=3)   # r_base
 
         plt.plot(x_axis, eg, label="EG")
         plt.legend()
