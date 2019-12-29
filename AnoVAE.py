@@ -585,7 +585,7 @@ class AnoVAE:
         # Error特定(ピークの左端を利用する)
         r_index_list = []
         for peak, l_base in zip(peaks, properties["left_bases"]):
-            r_index = max(peak + (peak - l_base),len(pred)-1)
+            r_index = min(peak + (peak - l_base),len(pred)-1)
             r_index_list.append(r_index)
             for i in range(l_base, r_index + 1):
                 pred[i] = True
