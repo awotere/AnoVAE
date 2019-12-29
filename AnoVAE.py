@@ -324,7 +324,7 @@ class AnoVAE:
 
         _, _, eg= self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.THRESHOLD_EG = np.average(eg)
+        self.THRESHOLD_EG = np.max(eg)
 
         self.set_threshold_flag = True
         return
@@ -450,33 +450,6 @@ class AnoVAE:
         ep = self.GetSigmaScore(3, mu_list, np.exp(sigma_list / 2))
 
         # 異常度(Error Rate)
-        timesteps = X_true.shape[1]
-        all_size = X_true.shape[0] + timesteps - 1
-        #error_r = [0] * all_size
-        #error_p = [0] * all_size
-
-        # 三角のかたちをした関数(幅timesteps,高さ1の「▲」な形をした関数)
-        def Triangle(t):
-            slope = 1/(timesteps/2)
-            if t <= timesteps/2:
-                return t * slope
-            return 2 + t * (-slope)
-
-        # 二次関数
-        def Square(t):
-            return (1/(timesteps ** 2)) * ((timesteps - t) ** 2) # y = (1/N^2) * (N-x)^2 s.t. N = timesteps
-
-        def SpikeSquare(t):
-            if t <= timesteps/2:
-                return ((1/(timesteps/2)) ** 2) * (t ** 2)
-            return ((4/timesteps) ** 2) * ((t-timesteps) ** 2)
-
-        def EdgeSquare(t):
-            if t <= timesteps/2:
-                return -((4/timesteps) ** 2) * ((t-timesteps/2) ** 2)
-            return ((4/timesteps) ** 2) * ((t-timesteps/2) ** 2)
-
-        area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
 
         #算術平均
         def ArithmeticMean(a,b):
@@ -492,58 +465,13 @@ class AnoVAE:
 
         G_mean = [GeometricMean(R,P) for R,P in zip(er,ep)]
 
-
-        #for er_i, ep_i, i in zip(er[timesteps-1:], ep[timesteps-1:], range(timesteps-1,all_size)):
-
-            #if er_i > self.THRESHOLD_ER :
-            #    for j in range(timesteps):
-            #        error_r[i - j] += Triangle(j)
-
-            #if ep_i > self.THRESHOLD_EP :
-            #    for j in range(timesteps):
-            #        error_p[i - j] += Square(j) * area_ratio
-
-            #if ep_i > self.THRESHOLD_EP:
-            #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
-
-        #filter_sq = [EdgeSquare(n) for n in range(timesteps)]
-        #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
-
         from scipy.signal import savgol_filter
         eg = list(savgol_filter(G_mean,window_length=21,polyorder=7))
-        #rror_rate = [0]*all_size
-
-        #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
-        #        error_rate[i] = eg_i
-        #        continue
-        #    error_rate[i] = (eg_i + error_rate[i]) / 2
-
-
-        #error_rate = [max(R,P) for R, P in zip(error_r, error_p)]
-
-        #sub = []
-        #for x_true, x_reco in zip(X_true, X_reco):
-        #    x_true = np.reshape(x_true, newshape=(-1,))
-        #    x_reco = np.reshape(x_reco, newshape=(-1,))
-        #    sub.append(list([abs(t-r) for t,r in zip(x_true,x_reco)]))
-
-        #error_wave = [0] * all_size
-        #for s,i in zip(sub,range(timesteps-1,all_size)):
-        #    for j in range(timesteps):
-        #        error_wave[i-j] += s[j]
-
-        #for i in range(all_size):
-        #    if i < timesteps:
-        #        error_wave[i] /= i + 1
-        #    elif i < all_size-timesteps:
-        #        error_wave[i] /= timesteps
-        #    else:
-        #        error_wave[i] /= all_size - i
 
         return er, ep, eg
 
 
-    def GetBestProminence(self,eg):
+    def GetBestParameter(self,eg):
         from scipy.optimize import minimize_scalar
         from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
 
@@ -553,11 +481,21 @@ class AnoVAE:
         true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
         true = true[G.TIMESTEPS-1:]
         #最適化する関数
-        recall_list = []
-        precision_list = []
-        F_list = []
+        def LossThreshold(threshold):
+            pred = np.array(eg) >= threshold
+            #混合行列
+            cm = confusion_matrix(true, pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:return 1 #エラー処理
 
-        def Loss(prominence):
+            # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
+            # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
+
+            # 出力はF値(recallとprecisionの調和平均)
+            # F値の最大化したいが、minimizeなのでF値の最大値1から減算
+            return 1 - f1_score(true, pred)
+
+        def LossPeak(prominence):
             pred,_ = self.FindError(eg,prominence=prominence)
 
             #混合行列
@@ -573,45 +511,10 @@ class AnoVAE:
             print(prominence)
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
+        bp = minimize_scalar(LossPeak,bounds=(0.0,max(eg)),method="bounded")
+        bt = minimize_scalar(LossThreshold,bounds=(0.0,max(eg)),method="bounded")
 
-        recall_list = []
-        precision_list = []
-        F_list = []
-
-        eg_max = max(eg)
-        div = 100
-
-        for i in range(div):
-            prominence = i * eg_max/div
-
-            pred, _ = self.FindError(eg, prominence=prominence)
-            cm = confusion_matrix(true, pred)
-            tn, fp, fn, tp = cm.flatten()
-            if fp + tp == 0:
-                recall_list.append(None)
-                precision_list.append(None)
-                F_list.append(None)
-                continue
-
-            recall_list.append(recall_score(true, pred))  # 検出率
-            precision_list.append(precision_score(true, pred))  # 精度
-            F = f1_score(true, pred)
-
-            F_list.append(F)
-
-        # グラフ
-        plt.ylabel("")
-        plt.ylim(0, 1)
-        x_axis = [i * eg_max/div for i in range(div)]
-        plt.plot(x_axis, recall_list, label="Recall")
-        plt.plot(x_axis, precision_list, label="Precision")
-        plt.plot(x_axis, F_list, label="F-score")
-        plt.legend()
-
-        plt.show()
-
-        return bp.x
+        return bp.x,bt.x
 
     def FindError(self,eg,prominence):
         from scipy.signal import find_peaks
@@ -638,6 +541,12 @@ class AnoVAE:
             #r_index_list.append(r_index)
             for i in range(l_base, r_base + 1):
                 pred[i] = True
+
+        # Error特定(閾値)
+        error_th = np.array(eg) > self.THRESHOLD_EG
+
+        # 積集合
+        pred = [P and T for P,T in zip(pred,error_th)]
 
         return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
 
@@ -738,15 +647,13 @@ class AnoVAE:
         offset = [0] * (G.TIMESTEPS - 1)
         pred = offset + pred
 
-        # original
-        plt.subplot(2, 1, 1)
-        plt.ylabel("Value")
-        plt.ylim(0, 1)
-
         # 異常領域の色塗り
         start_flag = False
         start_pos = 0
         error_range = 0
+
+        start_pos_list = []
+        end_pos_list = []
 
         for i in range(len(pred)):
 
@@ -754,8 +661,8 @@ class AnoVAE:
                 if pred[i]:
                     error_range += 1
                     continue
-
-                plt.axvspan(start_pos - 0.5, (start_pos + error_range) + 0.5, color="#ffcdd2")
+                start_pos_list.append(start_pos - 0.5)
+                end_pos_list.append(start_pos + error_range + 0.5)
                 error_range = 0
                 start_flag = False
 
@@ -763,24 +670,38 @@ class AnoVAE:
                 start_flag = True
                 start_pos = i
 
+        # original
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+        plt.axvspan(start_pos_list,end_pos_list, color="#ffcdd2",label="error")
         plt.plot(x_axis, true, label="original")
         plt.legend()
 
-        # Error Rate
+        # EG
         plt.subplot(2, 1, 2)
         plt.ylabel("EG")
 
         eg = offset + eg
-        for peak_x,l_index,r_index,prominence in zip(peaks_data[0],peaks_data[1],peaks_data[2],peaks_data[3]):
-            peak_x += len(offset)
-            l_index += len(offset)
-            r_index += len(offset)
 
-            from matplotlib.markers import CARETDOWN
-            peak_y = eg[peak_x]
-            plt.plot(peak_x,peak_y,marker=CARETDOWN,markersize=10,color="red")
-            plt.vlines(peak_x,ymin=peak_y - prominence,ymax=peak_y,color="orange")
-            plt.hlines(eg[l_index],xmin=l_index,xmax=r_index,color="orange")
+        # index
+        peaks = [peak + len(offset) for peak in peaks_data[0]]
+        l_bases = [lb + len(offset) for lb in peaks_data[1]]
+        r_bases = [rb + len(offset) for rb in peaks_data[2]]
+        prominences = peaks_data[3]
+
+        # eg[index]
+        eg_peaks = [eg[peak] for peak in peaks]
+        eg_l_bases = [eg[lb] for lb in l_bases]
+        eg_r_bases = [eg[rb] for rb in r_bases]
+
+        # plot
+        from matplotlib.markers import CARETDOWN
+        plt.plot(peaks, eg_peaks, marker=CARETDOWN, markersize=10, color="red",label="peak")             # ▼ピーク位置
+        plt.vlines(peaks, ymin=eg_r_bases, ymax=eg_peaks, color="orange")                        # prominence
+        plt.vlines(peaks, ymin=eg_l_bases, ymax=eg_r_bases, color="orange")                       # l_base 〜 r_base
+        plt.hlines([eg[lb] for lb in l_bases], xmin=l_bases, xmax=peaks, color="green")   # l_base
+        plt.hlines([eg[rb] for rb in r_bases], xmin=peaks, xmax=r_bases, color="lime")   # r_base
 
         plt.plot(x_axis, eg, label="EG")
         plt.legend()
@@ -890,7 +811,7 @@ class AnoVAE:
         # 閾値決定
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        bp = self.GetBestProminence(eg)
+        bp = self.GetBestParameter(eg)
         pred,peaks_data = self.FindError(eg,bp)
         self.ShowErrorRegion(true,pred,eg,peaks_data)
 
