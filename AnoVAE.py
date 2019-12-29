@@ -482,7 +482,7 @@ class AnoVAE:
         true = true[G.TIMESTEPS-1:]
         #最適化する関数
         def Loss(prominence):
-            pred,_ = self.FindPeaks(eg,prominence=prominence)
+            pred,_ = self.FindPeaks(eg,prominence_low=0,prominence_high=prominence)
 
             #混合行列
             cm = confusion_matrix(true, pred)
@@ -501,7 +501,7 @@ class AnoVAE:
 
         return bp.x
 
-    def FindPeaks(self,eg,prominence):
+    def FindPeaks(self,eg,prominence_low,prominence_high):
         from scipy.signal import find_peaks,peak_prominences
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
@@ -509,14 +509,14 @@ class AnoVAE:
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=(None,1))
+        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=prominence_low)
         # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
         l_index_list = []
         r_index_list = []
         for peak, l_base,r_base in zip(peaks, properties["left_bases"],properties["right_bases"]):
             if eg[l_base] > eg[r_base]:continue
-            if eg[peak] - eg[l_base] < prominence:continue
+            if eg[peak] - eg[l_base] < prominence_high:continue
 
             peak_x_list.append(peak)
             l_index_list.append(l_base)
@@ -535,10 +535,33 @@ class AnoVAE:
             del l_index_list[i]
             del r_index_list[i]
 
+        max_eg = max(eg)
+        div = 100
+        x_axis = np.arange(0,max_eg,max_eg/div)
+        y_axis = np.arange(0,max_eg,max_eg/div)
+        X,Y = np.meshgrid(x_axis,y_axis)
+        point_list = np.array([X.ravel(),Y.ravel()]).T
+
+        Z = np.zeros(shape=(div,div))
+
+        for i in range(div):
+            for j in range(div):
+                low = X[i][j]
+                high = Y[i][j]
+
+                if high <= low:
+                    Z[i][j] = 0
+                    continue
+
+                Z[i][j] = self.FindPeaks(eg,low,high)
+
+        cont = plt.contour(X,Y,Z,levels=[0.2,0.4,0.6,0.8])
+        cont.clabel(fmt="%1.1f",fontsize=14)
+
         return pred,[peak_x_list,l_index_list,r_index_list]
 
-    def GetErrorRegion(self,eg,prominence):
-        pred, peaks_data = self.FindPeaks(eg, prominence)
+    def GetErrorRegion(self,eg,prominence_low,prominence_high):
+        pred, peaks_data = self.FindPeaks(eg, prominence_low=prominence_low,prominence_high=prominence_high)
         pred = [P and T for P,T in zip(pred,np.array(eg) > self.THRESHOLD_EG)]
         return pred,peaks_data
 
@@ -763,7 +786,7 @@ class AnoVAE:
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
         best_prominence = self.GetBestProminence(eg)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence=best_prominence)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=0,prominence_high=best_prominence)
 
         self.ShowErrorRegion(true,pred,eg,peaks_data)
 
@@ -789,7 +812,7 @@ class AnoVAE:
 
         # 評価指標計算
         _, _, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence=best_prominence)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=0,prominence_high=best_prominence)
 
         self.ShowErrorRegion(true, pred,eg,peaks_data)
 
