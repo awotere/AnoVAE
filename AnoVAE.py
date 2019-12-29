@@ -526,7 +526,7 @@ class AnoVAE:
                 Z[i][j] = f1_score(true, pred)
 
 
-        plt.contour(X,Y,Z)
+        plt.imshow(Z,interpolation="nearest",cmap="jet")
         #ax.clabel(CS,fmt="%1.1f",fontsize=14)
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
