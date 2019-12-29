@@ -510,7 +510,7 @@ class AnoVAE:
         #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
         from scipy.signal import find_peaks,savgol_filter
-        eg = savgol_filter(G_mean,window_length=15,polyorder=5)
+        eg = list(savgol_filter(G_mean,window_length=15,polyorder=5))
         #rror_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
