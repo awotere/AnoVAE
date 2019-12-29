@@ -570,6 +570,7 @@ class AnoVAE:
 
             # 出力はF値(recallとprecisionの調和平均)
             # F値の最大化したいが、minimizeなのでF値の最大値1から減算
+            print(prominence)
             return 1 - f1_score(true, pred)
 
         bp = minimize_scalar(Loss,bounds=(0.0,1.0))
