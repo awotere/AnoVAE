@@ -597,13 +597,9 @@ class AnoVAE:
             recall_list.append(recall_score(true, pred))  # 検出率
             precision_list.append(precision_score(true, pred))  # 精度
             F = f1_score(true, pred)
-            if F > max_F:
-                max_F = F
-                accuracy = accuracy_score(true, pred)
 
             F_list.append(F)
 
-        print("accuracy = {0}".format(accuracy))
         # グラフ
         plt.ylabel("")
         plt.ylim(0, 1)
