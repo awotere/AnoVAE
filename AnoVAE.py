@@ -509,7 +509,7 @@ class AnoVAE:
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=(None,1))
+        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=prominence * 0.1)
         # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
         l_index_list = []
@@ -649,6 +649,10 @@ class AnoVAE:
             if pred[i]:
                 start_flag = True
                 start_pos = i
+        else:
+            if start_flag:
+                start_pos_list.append(start_pos - 0.5)
+                end_pos_list.append(start_pos + error_range + 0.5)
 
         # original
         plt.subplot(2, 1, 1)
