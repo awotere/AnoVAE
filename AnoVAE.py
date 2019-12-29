@@ -499,6 +499,35 @@ class AnoVAE:
 
         bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
 
+        max_eg = max(eg)
+        div = 100
+        x_axis = np.arange(0,max_eg,max_eg/div)
+        y_axis = np.arange(0,max_eg,max_eg/div)
+        X,Y = np.meshgrid(x_axis,y_axis)
+        point_list = np.array([X.ravel(),Y.ravel()]).T
+
+        Z = np.zeros(shape=(div,div))
+
+        for i in range(div):
+            for j in range(div):
+                low = X[i][j]
+                high = Y[i][j]
+
+                if high <= low:
+                    Z[i][j] = 0
+                    continue
+                pred, _ = self.FindPeaks(eg, prominence_low=low, prominence_high=high)
+
+                # 混合行列
+                cm = confusion_matrix(true, pred)
+                tn, fp, fn, tp = cm.flatten()
+                if fp + tp == 0: return 0  # エラー処理
+
+                Z[i][j] = f1_score(true, pred)
+
+        cont = plt.contour(X,Y,Z,levels=[0.2,0.4,0.6,0.8])
+        cont.clabel(fmt="%1.1f",fontsize=14)
+
         return bp.x
 
     def FindPeaks(self,eg,prominence_low,prominence_high):
@@ -534,29 +563,6 @@ class AnoVAE:
             del peak_x_list[i]
             del l_index_list[i]
             del r_index_list[i]
-
-        max_eg = max(eg)
-        div = 100
-        x_axis = np.arange(0,max_eg,max_eg/div)
-        y_axis = np.arange(0,max_eg,max_eg/div)
-        X,Y = np.meshgrid(x_axis,y_axis)
-        point_list = np.array([X.ravel(),Y.ravel()]).T
-
-        Z = np.zeros(shape=(div,div))
-
-        for i in range(div):
-            for j in range(div):
-                low = X[i][j]
-                high = Y[i][j]
-
-                if high <= low:
-                    Z[i][j] = 0
-                    continue
-
-                Z[i][j] = self.FindPeaks(eg,low,high)
-
-        cont = plt.contour(X,Y,Z,levels=[0.2,0.4,0.6,0.8])
-        cont.clabel(fmt="%1.1f",fontsize=14)
 
         return pred,[peak_x_list,l_index_list,r_index_list]
 
