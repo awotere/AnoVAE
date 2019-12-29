@@ -471,7 +471,7 @@ class AnoVAE:
         return er, ep, eg
 
 
-    def GetBestParameter(self,eg):
+    def GetBestProminence(self,eg):
         from scipy.optimize import minimize_scalar
         from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
 
@@ -481,22 +481,8 @@ class AnoVAE:
         true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
         true = true[G.TIMESTEPS-1:]
         #最適化する関数
-        def LossThreshold(threshold):
-            pred = np.array(eg) >= threshold
-            #混合行列
-            cm = confusion_matrix(true, pred)
-            tn, fp, fn, tp = cm.flatten()
-            if fp + tp == 0:return 1 #エラー処理
-
-            # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
-            # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
-
-            # 出力はF値(recallとprecisionの調和平均)
-            # F値の最大化したいが、minimizeなのでF値の最大値1から減算
-            return 1 - f1_score(true, pred)
-
-        def LossPeak(prominence):
-            pred,_ = self.FindError(eg,prominence=prominence)
+        def Loss(prominence):
+            pred,_ = self.FindPeaks(eg,prominence=prominence)
 
             #混合行列
             cm = confusion_matrix(true, pred)
@@ -511,12 +497,11 @@ class AnoVAE:
             print(prominence)
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(LossPeak,bounds=(0.0,max(eg)),method="bounded")
-        bt = minimize_scalar(LossThreshold,bounds=(0.0,max(eg)),method="bounded")
+        bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
 
-        return bp.x,bt.x
+        return bp.x
 
-    def FindError(self,eg,prominence):
+    def FindPeaks(self,eg,prominence):
         from scipy.signal import find_peaks
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
@@ -549,6 +534,11 @@ class AnoVAE:
         pred = [P and T for P,T in zip(pred,error_th)]
 
         return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
+
+    def GetErrorRegion(self,eg,prominence):
+        pred, peaks_data = self.FindPeaks(eg, prominence)
+        pred = [P and T for P,T in zip(pred,np.array(eg) > self.THRESHOLD_EG)]
+        return pred,peaks_data
 
 
     def GetErrorRateThreshold(self, error_rate):
@@ -813,8 +803,9 @@ class AnoVAE:
         # 閾値決定
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        bp = self.GetBestParameter(eg)
-        pred,peaks_data = self.FindError(eg,bp)
+        best_prominence = self.GetBestProminence(eg)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence=best_prominence)
+
         self.ShowErrorRegion(true,pred,eg,peaks_data)
 
         #self.ShowErrorRegion(true, error_rate, error_threshold)
@@ -839,7 +830,7 @@ class AnoVAE:
 
         # 評価指標計算
         _, _, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
-        pred, peaks_data = self.FindError(eg, bp)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence=best_prominence)
 
         self.ShowErrorRegion(true, pred,eg,peaks_data)
 
