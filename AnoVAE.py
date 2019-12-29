@@ -271,7 +271,7 @@ class AnoVAE:
         print("weightを保存しました:\n{0}", weight_path)
 
         # ER,EPのしきい値を計算
-        self.SetEREPThreshold(path)
+        self.SetEGThreshold(path)
 
         print("Train終了")
         self.load_weight_flag = True
@@ -311,7 +311,7 @@ class AnoVAE:
         self.load_weight_flag = True
         return
 
-    def SetEREPThreshold(self, path=None):
+    def SetEGThreshold(self, path=None):
 
         # 正常データのパス
         if path is None:
@@ -701,7 +701,7 @@ class AnoVAE:
 
         # 閾値の読み込み
         if not self.set_threshold_flag:
-            self.SetEREPThreshold()
+            self.SetEGThreshold()
         print("評価指標用の閾値の設定を行いました\n EG{0}".format(self.THRESHOLD_EG))
 
         # minmaxの設定
@@ -779,7 +779,7 @@ def main():
         vae.Train()
     else:
         vae.LoadWeight()
-        vae.SetEREPThreshold()
+        vae.SetEGThreshold()
 
     vae.TestCSV()
     return
