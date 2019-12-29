@@ -509,7 +509,7 @@ class AnoVAE:
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks, properties = find_peaks(eg, height=h, wlen=wlen ,prominence=prominence)
+        peaks, properties = find_peaks(eg, height=h, wlen=wlen)
 
         # Error特定(ピークの左端を利用する)
         peak_x_list = []
