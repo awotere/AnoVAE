@@ -509,13 +509,12 @@ class AnoVAE:
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks = find_peaks(eg, height=h)
-        _,left_bases,right_bases = peak_prominences(eg,peaks,wlen=wlen)
+        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=(None,1))
         # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
         l_index_list = []
         r_index_list = []
-        for peak, l_base,r_base,prom in zip(peaks, left_bases,right_bases):
+        for peak, l_base,r_base,prom in zip(peaks, properties["left_bases"],properties["right_bases"]):
             if eg[l_base] > eg[r_base]:continue
             if eg[peak] - eg[l_base] < prominence:continue
             peak_x_list.append(peak)
