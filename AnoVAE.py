@@ -322,7 +322,7 @@ class AnoVAE:
 
         mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
-        _, _, eg, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        _, _, eg= self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
         self.THRESHOLD_EG = np.average(eg)
 
