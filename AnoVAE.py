@@ -574,6 +574,47 @@ class AnoVAE:
             return 1 - f1_score(true, pred)
 
         bp = minimize_scalar(Loss,bounds=(0.0,1.0),method="bounded")
+
+        recall_list = []
+        precision_list = []
+        F_list = []
+
+        eg_max = max(eg)
+        div = 100
+
+        for i in range(div):
+            prominence = i * eg_max/div
+
+            pred, _ = self.FindError(eg, prominence=prominence)
+            cm = confusion_matrix(true, pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:
+                recall_list.append(None)
+                precision_list.append(None)
+                F_list.append(None)
+                continue
+
+            recall_list.append(recall_score(true, pred))  # 検出率
+            precision_list.append(precision_score(true, pred))  # 精度
+            F = f1_score(true, pred)
+            if F > max_F:
+                max_F = F
+                accuracy = accuracy_score(true, pred)
+
+            F_list.append(F)
+
+        print("accuracy = {0}".format(accuracy))
+        # グラフ
+        plt.ylabel("")
+        plt.ylim(0, 1)
+        x_axis = range(len(recall_list))
+        plt.plot(x_axis, recall_list, label="Recall")
+        plt.plot(x_axis, precision_list, label="Precision")
+        plt.plot(x_axis, F_list, label="F-score")
+        plt.legend()
+
+        plt.show()
+
         return bp.x
 
     def FindError(self,eg,prominence):
