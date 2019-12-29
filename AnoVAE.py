@@ -558,7 +558,7 @@ class AnoVAE:
         F_list = []
 
         def Loss(prominence):
-            pred,_ = self.FindError(eg,prominence=prominence)
+            pred,_ = self.FindError(eg,prominence=float(prominence))
 
             #混合行列
             cm = confusion_matrix(true, pred)
