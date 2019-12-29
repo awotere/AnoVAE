@@ -731,17 +731,17 @@ class AnoVAE:
         plt.subplot(2, 1, 2)
         plt.ylabel("EG")
 
-        eg += offset
-        for peak_x,l_base,r_index,prominence in zip(peaks_data[0],peaks_data[1],peaks_data[2],peaks_data[3]):
+        eg = offset + eg
+        for peak_x,l_index,r_index,prominence in zip(peaks_data[0],peaks_data[1],peaks_data[2],peaks_data[3]):
             peak_x += len(offset)
-            l_base += len(offset)
+            l_index += len(offset)
             r_index += len(offset)
 
             from matplotlib.markers import CARETDOWN
             peak_y = eg[peak_x]
             plt.plot(peak_x,peak_y,marker=CARETDOWN,markersize=10,color="red")
             plt.vlines(peak_x,ymin=peak_y - prominence,ymax=peak_y,color="orange")
-            plt.hlines(eg[l_base],xmin=l_base,xmax=r_index,color="orange")
+            plt.hlines(eg[l_index],xmin=l_index,xmax=r_index,color="orange")
 
         plt.plot(x_axis, eg, label="EG")
         plt.legend()
