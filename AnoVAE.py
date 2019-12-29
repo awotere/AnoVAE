@@ -618,7 +618,7 @@ class AnoVAE:
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
         d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
-        #wlen = G.TIMESTEPS
+        wlen = G.TIMESTEPS
 
         # ピーク検出
         peaks, properties = find_peaks(eg, height=h, distance=d, prominence=prominence)
