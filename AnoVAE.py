@@ -509,8 +509,8 @@ class AnoVAE:
         #filter_sq = [EdgeSquare(n) for n in range(timesteps)]
         #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
-        from scipy.signal import find_peaks,savgol_filter
-        eg = list(savgol_filter(G_mean,window_length=21,polyorder=7))
+        from scipy.signal import savgol_filter
+        eg = list(savgol_filter(G_mean,window_length=15,polyorder=5))
         #rror_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
@@ -573,7 +573,7 @@ class AnoVAE:
             print(prominence)
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(Loss,bounds=(0.0,1.0))
+        bp = minimize_scalar(Loss,bounds=(0.0,1.0),method="bounded")
         return bp.x
 
     def FindError(self,eg,prominence):
