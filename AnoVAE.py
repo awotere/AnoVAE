@@ -502,32 +502,29 @@ class AnoVAE:
         return bp.x
 
     def FindPeaks(self,eg,prominence):
-        from scipy.signal import find_peaks
+        from scipy.signal import find_peaks,peak_prominences
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
         #d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks, properties = find_peaks(eg, height=h, wlen=wlen)
-
-        # Error特定(ピークの左端を利用する)
+        peaks = find_peaks(eg, height=h)
+        _,left_bases,right_bases = peak_prominences(eg,peaks,wlen=wlen)
+        # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
-        prominence_list = []
         l_index_list = []
         r_index_list = []
-        for peak, l_base,r_base,prom in zip(peaks, properties["left_bases"],properties["right_bases"],properties["prominences"]):
+        for peak, l_base,r_base,prom in zip(peaks, left_bases,right_bases):
             if eg[l_base] > eg[r_base]:continue
+            if eg[peak] - eg[l_base] < prominence:continue
             peak_x_list.append(peak)
-            prominence_list.append(prom)
             l_index_list.append(l_base)
             r_index_list.append(r_base)
-            #r_index = min(peak + (peak - l_base),len(pred)-1)
-            #r_index_list.append(r_index)
             for i in range(l_base, r_base + 1):
                 pred[i] = True
 
-        return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
+        return pred,[peak_x_list,l_index_list,r_index_list]
 
     def GetErrorRegion(self,eg,prominence):
         pred, peaks_data = self.FindPeaks(eg, prominence)
