@@ -599,7 +599,7 @@ class AnoVAE:
     def ShowScoreGlaph(self, true, er, ep,eg, error_rate):
 
         x_axis = range(len(true))
-        offset = int(G.TIMESTEPS-1) # ER,EP,G表示用
+        offset = [0] * (G.TIMESTEPS-1) # ER,EP,G表示用
 
         # original
         plt.subplot(5, 1, 1)
