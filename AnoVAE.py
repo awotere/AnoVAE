@@ -573,7 +573,7 @@ class AnoVAE:
             # F値の最大化したいが、minimizeなのでF値の最大値1から減算
             return 1 - f1_score(true, pred)
 
-        return minimize_scalar(Loss,bracket=(0,1))
+        return minimize_scalar(Loss,bracket=(0.0,1.0))
 
     def FindError(self,eg,prominence):
         from scipy.signal import find_peaks
