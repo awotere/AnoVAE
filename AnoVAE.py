@@ -514,7 +514,7 @@ class AnoVAE:
         peak_x_list = []
         l_index_list = []
         r_index_list = []
-        for peak, l_base,r_base,prom in zip(peaks, properties["left_bases"],properties["right_bases"]):
+        for peak, l_base,r_base in zip(peaks, properties["left_bases"],properties["right_bases"]):
             if eg[l_base] > eg[r_base]:continue
             if eg[peak] - eg[l_base] < prominence:continue
             peak_x_list.append(peak)
