@@ -509,7 +509,7 @@ class AnoVAE:
         wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=prominence * 0.1)
+        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=(None,1))
         # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
         l_index_list = []
@@ -517,11 +517,23 @@ class AnoVAE:
         for peak, l_base,r_base in zip(peaks, properties["left_bases"],properties["right_bases"]):
             if eg[l_base] > eg[r_base]:continue
             if eg[peak] - eg[l_base] < prominence:continue
+
             peak_x_list.append(peak)
             l_index_list.append(l_base)
             r_index_list.append(r_base)
             for i in range(l_base, r_base + 1):
                 pred[i] = True
+
+        #l_baseがかぶってる要素を消去
+        remove_list = []
+        for i in range(1,len(l_index_list)):
+            if l_index_list[i] == l_index_list[i-1]:
+                remove_list.append(i-1)
+        remove_list = remove_list[::-1]
+        for i in remove_list:
+            del peak_x_list[i]
+            del l_index_list[i]
+            del r_index_list[i]
 
         return pred,[peak_x_list,l_index_list,r_index_list]
 
@@ -694,54 +706,6 @@ class AnoVAE:
         plt.legend()
 
         plt.show()
-
-
-    def ShowErrorRegion2(self, true, error_rate, threshold):
-
-        # original
-        plt.subplot(2, 1, 1)
-        plt.ylabel("Value")
-        plt.ylim(0, 1)
-
-        # Error Rateが閾値以上であるものをTrue(else False)としたBool配列を作成
-        error_region = np.array(error_rate) >= threshold
-
-        # 異常領域の色塗り
-        start_flag = False
-        start_pos = 0
-        error_range = 0
-
-        for i in range(len(error_region)):
-
-            if start_flag:
-                if error_region[i]:
-                    error_range += 1
-                    continue
-
-                plt.axvspan(start_pos - 0.5, (start_pos + error_range) + 0.5, color="#ffcdd2")
-                error_range = 0
-                start_flag = False
-
-            if error_region[i]:
-                start_flag = True
-                start_pos = i
-
-        plt.plot(range(len(true)), true, label="original")
-        plt.legend()
-
-        # Error Rate
-        plt.subplot(2, 1, 2)
-        plt.ylabel("Error Rate")
-
-        th_line = [threshold] * len(error_rate)  # 閾値の線
-
-        plt.plot(range(len(error_rate)), error_rate, label="Error Rate")
-        plt.plot(range(len(error_rate)), th_line, label="threshold")
-        plt.legend()
-
-        plt.show()
-
-        return
 
     # テストデータ(CSV)を評価する関数
     def TestCSV(self, path=None):
