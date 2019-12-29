@@ -511,7 +511,7 @@ class AnoVAE:
 
         from scipy.signal import find_peaks,savgol_filter
         eg = savgol_filter(G_mean,window_length=15,polyorder=5)
-        error_rate = [0]*all_size
+        #rror_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
         #        error_rate[i] = eg_i
@@ -540,7 +540,7 @@ class AnoVAE:
         #    else:
         #        error_wave[i] /= all_size - i
 
-        return er, ep, eg, error_rate
+        return er, ep, eg
 
 
     def GetBestProminence(self,eg):
