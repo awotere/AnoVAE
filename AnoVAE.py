@@ -645,54 +645,49 @@ class AnoVAE:
 
         return max_threshold
 
-    def ShowScoreGlaph(self, true, er, ep,eg, error_rate):
+    def ShowScoreGlaph(self, true, er, ep,eg):
 
         x_axis = range(len(true))
         offset = [0] * (G.TIMESTEPS-1) # ER,EP,G表示用
 
         # original
-        plt.subplot(5, 1, 1)
+        plt.subplot(4, 1, 1)
         plt.ylabel("Value")
         plt.ylim(0, 1)
         plt.plot(x_axis, true, label="original")
         plt.legend()
 
         # Reconstruction Error
-        plt.subplot(5, 1, 2)
+        plt.subplot(4, 1, 2)
         plt.ylabel("ER")
         #plt.ylim(0, 1)
         plt.plot(x_axis, offset + er, label="Reconstruction Error")
         plt.legend()
 
         # Probability Error
-        plt.subplot(5, 1, 3)
+        plt.subplot(4, 1, 3)
         plt.ylabel("EP")
         #plt.ylim(0, 1)
         plt.plot(x_axis, offset + ep, label="Probability Error")
         plt.legend()
 
-        # G
-        plt.subplot(5, 1, 4)
+        # EG
+        plt.subplot(4, 1, 4)
         plt.ylabel("EG")
         #plt.ylim(0, 1)
         plt.plot(x_axis, offset + eg, label="Geometric mean + GS5-15 Filter")
-        plt.legend()
-
-        # Error Rate
-        plt.subplot(5, 1, 5)
-        plt.xlabel("Time")
-        plt.ylabel("Error Rate")
-        # plt.ylim(0, 1)
-        plt.plot(x_axis, error_rate, label="Error Rate")
         plt.legend()
 
         plt.show()
 
         return
 
-    def ShowErrorRegion(self,true,eg,peaks_data):
+    def ShowErrorRegion(self,true,pred,eg,peaks_data):
 
         x_axis = range(len(true))
+
+        offset = [0] * (G.TIMESTEPS - 1)
+        pred += offset
 
         # original
         plt.subplot(2, 1, 1)
@@ -704,10 +699,10 @@ class AnoVAE:
         start_pos = 0
         error_range = 0
 
-        for i in range(len(eg)):
+        for i in range(len(pred)):
 
             if start_flag:
-                if eg[i]:
+                if pred[i]:
                     error_range += 1
                     continue
 
@@ -715,7 +710,7 @@ class AnoVAE:
                 error_range = 0
                 start_flag = False
 
-            if eg[i]:
+            if pred[i]:
                 start_flag = True
                 start_pos = i
 
@@ -726,7 +721,6 @@ class AnoVAE:
         plt.subplot(2, 1, 2)
         plt.ylabel("EG")
 
-        offset = [0] * (G.TIMESTEPS - 1)
         eg += offset
         for peak_data in peaks_data:
             peak_x,l_base,r_index,prominence = peak_data
@@ -807,7 +801,7 @@ class AnoVAE:
         # 閾値の読み込み
         if not self.set_threshold_flag:
             self.SetEGThreshold()
-        print("評価指標用の閾値の設定を行いました\n EG{0}".format(self.THRESHOLD_EG))
+        print("評価指標用の閾値の設定を行いました\n EG:{0}".format(self.THRESHOLD_EG))
 
         # minmaxの設定
         if not self.load_minmax_flag:
@@ -840,17 +834,17 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        er, ep,eg, error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        er, ep,eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.ShowScoreGlaph(true, er, ep,eg, error_rate)
+        self.ShowScoreGlaph(true, er, ep,eg)
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
         bp = self.GetBestProminence(eg)
-        self.FindError(eg,bp)
-        self.ShowErrorRegion(true,eg,)
+        pred,peaks_data = self.FindError(eg,bp)
+        self.ShowErrorRegion(true,pred,eg,peaks_data)
 
         #self.ShowErrorRegion(true, error_rate, error_threshold)
 
