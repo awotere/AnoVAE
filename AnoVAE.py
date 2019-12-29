@@ -867,9 +867,10 @@ class AnoVAE:
         true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
 
         # 評価指標計算
-        _, _, _,error_rate = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        _, _, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        pred, peaks_data = self.FindError(eg, bp)
 
-        self.ShowErrorRegion(true, error_rate, error_threshold)
+        self.ShowErrorRegion(true, pred,eg,peaks_data)
 
         return
 
