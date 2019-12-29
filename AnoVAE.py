@@ -58,9 +58,7 @@ class AnoVAE:
     MIN = None
     MAX = None
 
-    THRESHOLD_ER = 0
-    THRESHOLD_EP = 0
-    THRESHOLD_HM = 0
+    THRESHOLD_EG = 0
 
     # コンストラクタ
     def __init__(self):
@@ -326,9 +324,7 @@ class AnoVAE:
 
         _, _, eg, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        #self.THRESHOLD_ER = max(er)
-        #self.THRESHOLD_EP = max(ep)
-        self.THRESHOLD_HM = max(eg)
+        self.THRESHOLD_EG = max(eg)
 
         self.set_threshold_flag = True
         return
@@ -447,20 +443,17 @@ class AnoVAE:
     # 正常データと再構成データから異常度を表すパラメータ(ER,EP,?)を取得する関数
     def GetScore(self, X_true, X_reco, mu_list, sigma_list):
 
-        offset = int(G.TIMESTEPS-1)
         # 再構成誤差(ER)
-        er = [0] * offset
-        er += self.GetReconstructionError(X_true, X_reco)
+        er = self.GetReconstructionError(X_true, X_reco)
 
         # 分布の計算(EP)
-        ep = [0] * offset
-        ep += self.GetSigmaScore(3, mu_list, np.exp(sigma_list / 2))
+        ep = self.GetSigmaScore(3, mu_list, np.exp(sigma_list / 2))
 
         # 異常度(Error Rate)
         timesteps = X_true.shape[1]
         all_size = X_true.shape[0] + timesteps - 1
-        error_r = [0] * all_size
-        error_p = [0] * all_size
+        #error_r = [0] * all_size
+        #error_p = [0] * all_size
 
         # 三角のかたちをした関数(幅timesteps,高さ1の「▲」な形をした関数)
         def Triangle(t):
@@ -476,12 +469,12 @@ class AnoVAE:
         def SpikeSquare(t):
             if t <= timesteps/2:
                 return ((1/(timesteps/2)) ** 2) * (t ** 2)
-            return ((4/(timesteps)) ** 2) * ((t-timesteps) ** 2)
+            return ((4/timesteps) ** 2) * ((t-timesteps) ** 2)
 
         def EdgeSquare(t):
             if t <= timesteps/2:
-                return -((4/(timesteps)) ** 2) * ((t-timesteps/2) ** 2)
-            return ((4/(timesteps)) ** 2) * ((t-timesteps/2) ** 2)
+                return -((4/timesteps) ** 2) * ((t-timesteps/2) ** 2)
+            return ((4/timesteps) ** 2) * ((t-timesteps/2) ** 2)
 
         area_ratio = 1.5 #∫Triangle(t)dt と ∫Square(t)dt の面積比(▲が1)
 
@@ -497,7 +490,7 @@ class AnoVAE:
                 return 0
             return 2 * a * b /(a + b)
 
-        eg = [GeometricMean(R,P) for R,P in zip(er,ep)]
+        G_mean = [GeometricMean(R,P) for R,P in zip(er,ep)]
 
 
         #for er_i, ep_i, i in zip(er[timesteps-1:], ep[timesteps-1:], range(timesteps-1,all_size)):
@@ -513,8 +506,13 @@ class AnoVAE:
             #if ep_i > self.THRESHOLD_EP:
             #    error_p[i - timesteps] = (timesteps/2) * ((ep_i - self.THRESHOLD_EP) * (1/(1-self.THRESHOLD_EP)))
 
-        filter_sq = [EdgeSquare(n) for n in range(timesteps)]
-        error_rate = np.convolve(eg[timesteps-1:],filter_sq)
+        #filter_sq = [EdgeSquare(n) for n in range(timesteps)]
+        #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
+
+        from scipy.signal import find_peaks,savgol_filter
+        eg = savgol_filter(G_mean,window_length=15,polyorder=5)
+        peaks, properties = find_peaks(eg,height=self.THRESHOLD_EG,distance=timesteps*2,wlen=timesteps)
+        error_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
         #        error_rate[i] = eg_i
@@ -598,9 +596,10 @@ class AnoVAE:
 
         return max_threshold
 
-    def ShowScoreGlaph(self, true, er, ep,ehm, error_rate):
+    def ShowScoreGlaph(self, true, er, ep,eg, error_rate):
 
         x_axis = range(len(true))
+        offset = int(G.TIMESTEPS-1) # ER,EP,G表示用
 
         # original
         plt.subplot(5, 1, 1)
@@ -613,21 +612,21 @@ class AnoVAE:
         plt.subplot(5, 1, 2)
         plt.ylabel("ER")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, er, label="Reconstruction Error")
+        plt.plot(x_axis, offset + er, label="Reconstruction Error")
         plt.legend()
 
         # Probability Error
         plt.subplot(5, 1, 3)
         plt.ylabel("EP")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, ep, label="Probability Error")
+        plt.plot(x_axis, offset + ep, label="Probability Error")
         plt.legend()
 
-        # ehm
+        # G
         plt.subplot(5, 1, 4)
-        plt.ylabel("ehm")
+        plt.ylabel("EG")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, ehm, label="Geometric mean")
+        plt.plot(x_axis, offset + eg, label="Geometric mean + GS5-15 Filter")
         plt.legend()
 
         # Error Rate
