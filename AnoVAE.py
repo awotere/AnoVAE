@@ -573,7 +573,7 @@ class AnoVAE:
             print(prominence)
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(Loss,bounds=(0.0,1.0),method="bounded")
+        bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
 
         recall_list = []
         precision_list = []
@@ -603,7 +603,7 @@ class AnoVAE:
         # グラフ
         plt.ylabel("")
         plt.ylim(0, 1)
-        x_axis = range(len(recall_list))
+        x_axis = [i * eg_max/div for i in range(div)]
         plt.plot(x_axis, recall_list, label="Recall")
         plt.plot(x_axis, precision_list, label="Precision")
         plt.plot(x_axis, F_list, label="F-score")
