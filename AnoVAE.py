@@ -557,7 +557,8 @@ class AnoVAE:
         precision_list = []
         F_list = []
 
-        def Loss(prominence):
+        def Loss(opt):
+            prominence = opt.x
             pred,_ = self.FindError(eg,prominence=prominence)
 
             #混合行列
@@ -581,8 +582,7 @@ class AnoVAE:
         d = int(G.TIMESTEPS * 1.5)  # ピーク同士の距離の最小値
 
         # ピーク検出
-        prom_f = float(prominence)
-        peaks, properties = find_peaks(eg, height=h, distance=d, prominence=prom_f)
+        peaks, properties = find_peaks(eg, height=h, distance=d, prominence=prominence)
 
         # Error特定(ピークの左端を利用する)
         r_index_list = []
