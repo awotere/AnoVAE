@@ -510,7 +510,7 @@ class AnoVAE:
         #error_rate = np.convolve(eg[timesteps-1:],filter_sq)
 
         from scipy.signal import find_peaks,savgol_filter
-        eg = list(savgol_filter(G_mean,window_length=15,polyorder=5))
+        eg = list(savgol_filter(G_mean,window_length=21,polyorder=7))
         #rror_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
@@ -580,10 +580,10 @@ class AnoVAE:
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
         d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
-        w = (None,G.TIMESTEPS)
+        wlen = G.TIMESTEPS #
 
         # ピーク検出
-        peaks, properties = find_peaks(eg, height=h, distance=d, width=w, prominence=prominence)
+        peaks, properties = find_peaks(eg, height=h, distance=d, wlen=wlen, prominence=prominence)
 
         # Error特定(ピークの左端を利用する)
         peak_x_list = []
