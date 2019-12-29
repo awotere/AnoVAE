@@ -525,11 +525,11 @@ class AnoVAE:
                 print("({0},{1})".format(i,j))
                 Z[i][j] = f1_score(true, pred)
 
-        fig, ax = plt.subplots()
-        CS = ax.contour(X,Y,Z,levels=[0.2,0.4,0.6,0.8])
-        ax.clabel(CS,fmt="%1.1f",fontsize=14)
-        ax.set_xlabel("prominence low")
-        ax.set_ylabel("prominence high")
+
+        plt.contour(X,Y,Z)
+        #ax.clabel(CS,fmt="%1.1f",fontsize=14)
+        plt.xlabel("prominence low")
+        plt.ylabel("prominence high")
         plt.show()
 
         return bp.x
