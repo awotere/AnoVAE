@@ -558,7 +558,7 @@ class AnoVAE:
         F_list = []
 
         def Loss(opt):
-            prominence = opt.x
+            prominence = opt
             pred,_ = self.FindError(eg,prominence=prominence)
 
             #混合行列
