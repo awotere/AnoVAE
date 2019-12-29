@@ -591,7 +591,7 @@ class AnoVAE:
         l_index_list = []
         r_index_list = []
         for peak, l_base,r_base,prom in zip(peaks, properties["left_bases"],properties["right_bases"],properties["prominences"]):
-            if l_base > r_base:continue
+            if eg[l_base] > eg[r_base]:continue
             peak_x_list.append(peak)
             prominence_list.append(prom)
             l_index_list.append(l_base)
@@ -600,7 +600,7 @@ class AnoVAE:
             for i in range(l_base, r_index + 1):
                 pred[i] = True
 
-        return pred,[peaks,properties["left_bases"],r_index_list,properties["prominences"]]
+        return pred,[peak_x_list,l_index_list,r_index_list,prominence_list]
 
 
     def GetErrorRateThreshold(self, error_rate):
