@@ -724,7 +724,7 @@ class AnoVAE:
         plt.subplot(4, 1, 4)
         plt.ylabel("EG")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, offset + eg, label="Geometric mean + GS5-15 Filter")
+        plt.plot(x_axis, offset + eg, label="Geometric mean + GS7-21 Filter")
         plt.legend()
 
         plt.show()
