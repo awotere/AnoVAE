@@ -572,7 +572,7 @@ class AnoVAE:
             # F値の最大化したいが、minimizeなのでF値の最大値1から減算
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(Loss,bracket=(0.0,1.0))
+        bp = minimize_scalar(Loss,bounds=(0.0,1.0))
         return bp.x
 
     def FindError(self,eg,prominence):
