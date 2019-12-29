@@ -591,7 +591,7 @@ class AnoVAE:
             for i in range(l_base, r_index + 1):
                 pred[i] = True
 
-        return pred,[peaks,properties["left_bases"],r_index_list,properties["prominence"]]
+        return pred,[peaks,properties["left_bases"],r_index_list,properties["prominences"]]
 
 
     def GetErrorRateThreshold(self, error_rate):
