@@ -324,7 +324,7 @@ class AnoVAE:
 
         _, _, eg, _ = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
-        self.THRESHOLD_EG = max(eg)
+        self.THRESHOLD_EG = np.average(eg)
 
         self.set_threshold_flag = True
         return
@@ -511,7 +511,6 @@ class AnoVAE:
 
         from scipy.signal import find_peaks,savgol_filter
         eg = savgol_filter(G_mean,window_length=15,polyorder=5)
-        peaks, properties = find_peaks(eg,height=self.THRESHOLD_EG,distance=timesteps*2,wlen=timesteps)
         error_rate = [0]*all_size
 
         #for eg_i,i in zip(eg[timesteps-1:],range(timesteps-1,all_size)):
@@ -542,6 +541,56 @@ class AnoVAE:
         #        error_wave[i] /= all_size - i
 
         return er, ep, eg, error_rate
+
+
+    def GetBestProminence(self,eg):
+        from scipy.optimize import minimize_scalar
+        from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
+
+        MSGBOX.showinfo("AnoVAE>TestCSV()", "異常範囲データを指定してください")
+        tf_path = GetFilePathFromDialog([("異常範囲データ.csv", "*.csv"), ("すべてのファイル", "*")])
+
+        true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
+        #最適化する関数
+        recall_list = []
+        precision_list = []
+        F_list = []
+
+        def Loss(prominence):
+            pred,_ = self.FindError(eg,prominence=prominence)
+
+            #混合行列
+            cm = confusion_matrix(true, pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:return 1 #エラー処理
+
+            # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
+            # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
+
+            # 出力はF値(recallとprecisionの調和平均)
+            # F値の最大化したいが、minimizeなのでF値の最大値1から減算
+            return 1 - f1_score(true, pred)
+
+        return minimize_scalar(Loss,bracket=(0,1))
+
+    def FindError(self,eg,prominence):
+        from scipy.signal import find_peaks
+        pred = [False] * len(eg)
+        h = self.THRESHOLD_EG  # 最低ピーク値
+        d = int(G.TIMESTEPS * 1.5)  # ピーク同士の距離の最小値
+
+        # ピーク検出
+        peaks, properties = find_peaks(eg, height=h, distance=d, prominence=prominence)
+
+        # Error特定(ピークの左端を利用する)
+        r_index_list = []
+        for peak, l_base in zip(peaks, properties["left_bases"]):
+            r_index = peak + (peak - l_base)
+            r_index_list.append(r_index)
+            for i in range(l_base, r_index + 1):
+                pred[i] = True
+
+        return pred,[peak,l_base,r_index_list,properties["left_bases"]]
 
 
     def GetErrorRateThreshold(self, error_rate):
@@ -641,7 +690,63 @@ class AnoVAE:
 
         return
 
-    def ShowErrorRegion(self, true, error_rate, threshold):
+    def ShowErrorRegion(self,true,eg,peaks_data):
+
+        x_axis = range(len(true))
+
+        # original
+        plt.subplot(2, 1, 1)
+        plt.ylabel("Value")
+        plt.ylim(0, 1)
+
+        # 異常領域の色塗り
+        start_flag = False
+        start_pos = 0
+        error_range = 0
+
+        for i in range(len(eg)):
+
+            if start_flag:
+                if eg[i]:
+                    error_range += 1
+                    continue
+
+                plt.axvspan(start_pos - 0.5, (start_pos + error_range) + 0.5, color="#ffcdd2")
+                error_range = 0
+                start_flag = False
+
+            if eg[i]:
+                start_flag = True
+                start_pos = i
+
+        plt.plot(x_axis, true, label="original")
+        plt.legend()
+
+        # Error Rate
+        plt.subplot(2, 1, 2)
+        plt.ylabel("EG")
+
+        offset = [0] * (G.TIMESTEPS - 1)
+        eg += offset
+        for peak_data in peaks_data:
+            peak_x,l_base,r_index,prominence = peak_data
+            peak_x += len(offset)
+            l_base += len(offset)
+            r_index += len(offset)
+
+            from matplotlib.markers import CARETDOWN
+            peak_y = eg[peak_x]
+            plt.plot(peak_x,peak_y,marker=CARETDOWN,markersize=10,color="red")
+            plt.vlines(peak_x,ymin=peak_y - prominence,ymax=peak_y,color="orange")
+            plt.hlines(eg[l_base],xmin=l_base,xmax=r_index,color="orange")
+
+        plt.plot(x_axis, eg, label="EG")
+        plt.legend()
+
+        plt.show()
+
+
+    def ShowErrorRegion2(self, true, error_rate, threshold):
 
         # original
         plt.subplot(2, 1, 1)
@@ -741,9 +846,13 @@ class AnoVAE:
         print("表示用データ作成完了しました 処理時間: {0:.2f}s".format(time.time() - t))
 
         # 閾値決定
-        error_threshold = self.GetErrorRateThreshold(error_rate)
+        #error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        self.ShowErrorRegion(true, error_rate, error_threshold)
+        bp = self.GetBestProminence(eg)
+        self.FindError(eg,bp)
+        self.ShowErrorRegion(true,eg,)
+
+        #self.ShowErrorRegion(true, error_rate, error_threshold)
 
         ############################# 2回目 推論 ##############################
 
