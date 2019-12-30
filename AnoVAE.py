@@ -531,7 +531,7 @@ class AnoVAE:
 
 
         max_eg = max(eg)
-        div = 50
+        div = 100
         x_axis = np.arange(0,max_eg,max_eg/div)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
@@ -547,34 +547,37 @@ class AnoVAE:
                 low = X[i][j]
                 high = Y[i][j]
 
-                if high <= low:
-                    Z[i][j] = 0
-                    continue
+                step = j * div + i
+                if step % int(div * div / 20) == 0:
+                    progress = int(step / int(div * div / 20))
+                    print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
+                if high <= low:continue # high >= lowでなければならない
+                #if high >= zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
                 # -Loss([low,high])はF値を表す
+                pred, _ = self.GetErrorRegion(eg, prominence_low=low, prominence_high=high)
 
+                # 混合行列
+                cm = confusion_matrix(true, pred)
+                tn, fp, fn, tp = cm.flatten()
+                if fp + tp == 0: # ピーク検出ゼロ
+                    Z[i][j] = 0
+                # エラー処理
                 F_grid = -Loss([low,high])
-
-                x0 = np.array([low, high])
-                bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
-                F_minimize = -Loss([bp.x[0],bp.x[1]])
 
                 if F_grid > F_max:
                     F_max = F_grid
                     best_low = low
                     best_high = high
 
-                if F_minimize > F_max:
-                    F_max = F_grid
-                    best_low = bp[0]
-                    best_high = bp[1]
 
-                step = j*div + i
-                if step % int(div*div/20) == 0:
-                    progress = int(step / int(div*div/20))
-                    print("progress ... [{0}{1}{2}]".format("=="*max(0,progress-1),"=>","--"*(10-progress)))
-
-
+        x0 = np.array([best_low, best_high])
+        bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
+        F_minimize = -Loss([bp.x[0], bp.x[1]])
+        if F_max > F_minimize:
+            F_max = F_minimize
+            best_low = bp[0]
+            best_high = bp[1]
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
