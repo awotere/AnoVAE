@@ -539,7 +539,7 @@ class AnoVAE:
 
             if  i % int(len(x_axis)/20) == 0 and i != 0:
                 pro_time = time.time() - t
-                progress =  int(i / int(len(x_axis)/20))
+                progress =  int(i / len(x_axis) * progless_div)
                 end_time = (progless_div - progress) * pro_time
                 print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
                                                                     "-" * (20 - progress), end_time))
@@ -565,7 +565,7 @@ class AnoVAE:
 
             if wlen % int(len(x_axis) / 20) == 0 and wlen != 0:
                 pro_time = time.time() - t
-                progress = int(wlen / int(len(x_axis) / 20))
+                progress = int(wlen / len(x_axis) * progless_div)
                 end_time = (progless_div - progress) * pro_time
                 print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
                                                                     "-" * (20 - progress), end_time))
@@ -575,8 +575,8 @@ class AnoVAE:
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
         cont.clabel(fmt="%1.2f",fontsize=14)
 
-        plt.xlabel("prominence low")
-        plt.ylabel("prominence high")
+        plt.xlabel("wlen")
+        plt.ylabel("prominence")
 
         plt.plot(best_wlen,best_prominence,marker="x", markersize=10, color="red")
         plt.text(best_wlen,best_prominence,s="({0},{1:1.3f}):F = {2:1.3f}".format(best_wlen,best_prominence,F_max),fontsize=14)
