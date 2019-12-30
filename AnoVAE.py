@@ -534,7 +534,7 @@ class AnoVAE:
         #探索初期値x0
         x0 = np.array([eg_max,eg_max])
 
-        bp2 = minimize(Loss2,x0=x0,method="COBYLA",constraints=cons)
+        bp2 = minimize(Loss2,x0=(eg_max,eg_max),method="COBYLA",constraints=cons)
 
         max_eg = max(eg)
         div = 100
