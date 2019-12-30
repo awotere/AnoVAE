@@ -570,7 +570,7 @@ class AnoVAE:
         cont.clabel(fmt="%1.1f",fontsize=14)
 
         for i in range(len(optimize_low)-1):
-            plt.anotate("",
+            plt.annotate("",
                         xy=(optimize_low[i+1],optimize_high[i+1]),
                         xytext=(optimize_low[i],optimize_high[i]),
                         arrowstyle="->"
