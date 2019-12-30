@@ -569,15 +569,7 @@ class AnoVAE:
         cont = plt.contour(X, Y, Z)
         cont.clabel(fmt="%1.1f",fontsize=14)
 
-        for i in range(len(optimize_low)-1):
-            plt.annotate("",
-                        xy=(optimize_low[i+1],optimize_high[i+1]),
-                        xytext=(optimize_low[i],optimize_high[i]),
-                        arrowprops = dict(arrowstyle="->",
-                                          connectionstyle='arc3',
-                                          facecolor='C0',
-                                          edgecolor='C0')
-                        )
+        plt.plot(optimize_low,optimize_high,marker="x", markersize=10, color="red",label="flow",linestyle="None")
 
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
