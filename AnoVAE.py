@@ -532,8 +532,8 @@ class AnoVAE:
                 {"type":"ineq","fun":lambda x: eg_max - x[1]})    # high ≦ max(eg)
 
         #探索初期値x0
-        x0 = np.array([eg_max,eg_max])
-        x0 = np.reshape(x0,newshape=(-1,))
+        x0 = np.array([eg_max/2,eg_max/2])
+        #x0 = np.reshape(x0,newshape=(-1,))
         bp2 = minimize(Loss2,x0=x0,method="COBYLA",constraints=cons)
 
         max_eg = max(eg)
