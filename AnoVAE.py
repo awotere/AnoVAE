@@ -578,7 +578,7 @@ class AnoVAE:
         plt.ylabel("prominence high")
         plt.show()
 
-        return bp.x
+        return bp2.x[0],bp2.x[1]
 
     def FindPeaks(self,eg,prominence_low,prominence_high):
         from scipy.signal import find_peaks,peak_prominences
@@ -841,8 +841,8 @@ class AnoVAE:
         # 閾値決定
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        best_prominence = self.GetBestProminence(eg)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=0,prominence_high=best_prominence)
+        best_p_low,best_p_high = self.GetBestProminence(eg)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=best_p_low,prominence_high=best_p_high)
 
         self.ShowErrorRegion(true,pred,eg,peaks_data)
 
@@ -868,7 +868,7 @@ class AnoVAE:
 
         # 評価指標計算
         _, _, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=0,prominence_high=best_prominence)
+        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=best_p_low,prominence_high=best_p_high)
 
         self.ShowErrorRegion(true, pred,eg,peaks_data)
 
