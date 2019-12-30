@@ -547,7 +547,7 @@ class AnoVAE:
                 low = X[i][j]
                 high = Y[i][j]
 
-                step = j * div + i
+                step = i * div + j
                 if step % int(div * div / 20) == 0:
                     progress = int(step / int(div * div / 20))
                     print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
@@ -576,8 +576,8 @@ class AnoVAE:
         F_minimize = -Loss([bp.x[0], bp.x[1]])
         if F_max > F_minimize:
             F_max = F_minimize
-            best_low = bp[0]
-            best_high = bp[1]
+            best_low = bp.x[0]
+            best_high = bp.y[1]
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
