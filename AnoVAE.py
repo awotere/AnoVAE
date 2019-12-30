@@ -502,9 +502,7 @@ class AnoVAE:
         #bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
         """
 
-        optimize_low = []
-        optimize_high = []
-        def Loss2(p):
+        def Loss(p):
             p_low = p[0]
             p_high = p[1]
             pred,_ = self.GetErrorRegion(eg,prominence_low=p_low,prominence_high=p_high)
@@ -519,10 +517,8 @@ class AnoVAE:
 
             # 出力はF値(recallとprecisionの調和平均)
             # F値の最大化したいが、minimizeなのでF値の最大値1から減算
-            optimize_low.append(p_low)
-            optimize_high.append(p_high)
 
-            return 1 - f1_score(true, pred)
+            return - f1_score(true, pred)
 
         eg_max = max(eg)
 
@@ -533,13 +529,6 @@ class AnoVAE:
                 {"type":"ineq","fun":lambda x: -x[1] + x[0]} ,     # low  ≦ high
                 {"type":"ineq","fun":lambda x: -eg_max + x[1]})    # high ≦ max(eg)
 
-        #探索初期値x0
-        x0 = np.array([eg_max/2,eg_max/2])
-        x0 = np.reshape(x0,newshape=(-1,))
-        bp2 = minimize(Loss2,x0=x0,method="COBYLA",constraints=cons)
-
-        best_low = bp2.x[0]
-        best_high = bp2.x[1]
 
         max_eg = max(eg)
         div = 100
@@ -549,6 +538,10 @@ class AnoVAE:
 
         Z = np.zeros(shape=(div,div))
 
+        best_low = 0
+        best_high = 0
+        F_max = 0
+
         for i in range(div):
             for j in range(div):
                 low = X[i][j]
@@ -557,29 +550,37 @@ class AnoVAE:
                 if high <= low:
                     Z[i][j] = 0
                     continue
-                pred, _ = self.GetErrorRegion(eg, prominence_low=low, prominence_high=high)
 
-                # 混合行列
-                cm = confusion_matrix(true, pred)
-                tn, fp, fn, tp = cm.flatten()
-                if fp + tp == 0: continue  # エラー処理
+                # -Loss([low,high])はF値を表す
 
-                print("({0},{1})".format(i,j))
-                Z[i][j] = f1_score(true, pred)
+                F_grid = -Loss([low,high])
+                x0 = np.array([low, high])
+                bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
+                F_minimize = -Loss(bp)
+
+                if F_grid > F_max:
+                    F_max = F_grid
+                    best_low = low
+                    best_high = high
+
+                if F_minimize > F_max:
+                    F_max = F_grid
+                    best_low = bp[0]
+                    best_high = bp[1]
 
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
-        cont.clabel(fmt="%1.1f",fontsize=14)
+        cont.clabel(fmt="%1.2f",fontsize=14)
 
         #plt.plot(optimize_low,optimize_high,marker="x", markersize=10, color="red",label="flow",linestyle="None")
 
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
 
-        plt.plot(optimize_low,optimize_high, markersize=7, color="gray")
+        #plt.plot(optimize_low,optimize_high, markersize=7, color="gray")
         plt.plot(best_low,best_high,marker="x", markersize=10, color="red")
-        plt.text(best_low,best_high,s="({0},{1})".format(best_low,best_high),fontsize=14)
+        plt.text(best_low,best_high,s="({0:1.3f},{1:1.3f}):F = {2:1.3f}".format(best_low,best_high,F_max),fontsize=14)
 
         plt.show()
 
