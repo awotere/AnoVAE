@@ -515,7 +515,6 @@ class AnoVAE:
                 wlen = X[i][j]
                 prominence = Y[i][j]
 
-                #if high > zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
                 pred, _ = self.GetErrorRegion(eg, wlen=wlen, prominence=prominence)
 
                 # 混合行列
@@ -523,6 +522,7 @@ class AnoVAE:
                 tn, fp, fn, tp = cm.flatten()
                 if fp + tp == 0: # ピーク検出ゼロ
                     Z[i][j] = 0
+                    continue
 
                 F_grid = GetF(wlen,prominence)
                 Z[i][j] = F_grid
@@ -532,12 +532,15 @@ class AnoVAE:
                     best_prominence = prominence
 
             if  i % int(G.TIMESTEPS/20) == 0 :
-                progress = int(i / int(G.TIMESTEPS/20))
-                print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
+                if i == 0:
+                    print("progress ... [{0}]".format("-" * 20 ))
+                else:
+                    progress = int(i / int(G.TIMESTEPS/20))
+                    print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
         #最適化する関数、wlenは定数
         def Loss(p,args):
-            wlen = args
+            wlen = args[0]
             return -GetF(wlen,p)
 
         for wlen in x_axis:
