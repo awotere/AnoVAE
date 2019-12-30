@@ -511,7 +511,7 @@ class AnoVAE:
         F_max = 0
 
         print("step1 wlen-prominenceグラフ作成")
-
+        t = time.time()
         for i in range(len(x_axis)):
             for j in range(len(y_axis)):
                 wlen = X[j][i]
@@ -535,17 +535,30 @@ class AnoVAE:
                     best_prominence = prominence
 
             if  i % int(G.TIMESTEPS/20) == 0 :
+                pro_time = time.time() - t
+
                 if i == 0:
-                    print("step1 ... [{0}]".format("-" * 20 ))
+                    pro_size = int(G.TIMESTEPS / 20) - 2
+                    speed = pro_size/pro_time
+                    end_time = (len(x_axis)-pro_size)/speed
+                    print("step1 ... [{0}] 残り時間:{1:1.2f}s".format("-" * 20,end_time))
                 else:
+                    pro_size = int(G.TIMESTEPS / 20)
+                    speed = pro_size/pro_time
+                    end_time = (len(x_axis)-pro_size*i)/speed
                     progress = int(i / int(G.TIMESTEPS/20))
-                    print("step1 ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
+                    print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
+
+                t = time.time()
+
+        print("\nstep2 minimize予測")
 
         #最適化する関数、wlenは定数
         def Loss(p,args):
             wlen = args[0]
             return -GetF(wlen,p)
 
+        t= time.time()
         for wlen in x_axis:
             bp = minimize_scalar(Loss,args=[wlen],bounds=(0.0,max_eg),method="Bounded")
 
@@ -556,11 +569,21 @@ class AnoVAE:
                 best_prominence = bp.x
 
             if  wlen % int(G.TIMESTEPS/20) == 0 :
+                pro_time = time.time() - t
+
                 if wlen == 0:
-                    print("step2 ... [{0}]".format("-" * 20 ))
+                    pro_size = int(G.TIMESTEPS / 20) - 2
+                    speed = pro_size/pro_time
+                    end_time = (len(x_axis)-pro_size)/speed
+                    print("step1 ... [{0}] 残り時間:{1:1.2f}s".format("-" * 20,end_time))
                 else:
+                    pro_size = int(G.TIMESTEPS / 20)
+                    speed = pro_size/pro_time
+                    end_time = (len(x_axis)-pro_size*wlen)/speed
                     progress = int(wlen / int(G.TIMESTEPS/20))
-                    print("step2 ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
+                    print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
+
+                t = time.time()
 
 
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
