@@ -504,7 +504,7 @@ class AnoVAE:
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
 
-        Z = np.zeros(shape=(div,G.TIMESTEPS))
+        Z = np.zeros(shape=(div,G.TIMESTEPS-2))
 
         best_wlen = 0
         best_prominence = 0
