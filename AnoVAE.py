@@ -528,7 +528,7 @@ class AnoVAE:
 
         #制約条件cons (x[0] == low,x[1] == high),
         # 0 ≦ low ≦ high ≦ max(eg)
-        # "ineq"は不等式 「0 ≦ f(x)」、"fun"は唯のfunctionを表す(偏導関数を与える場合に"jac"と書くが、COBYLAでは使わない)
+        # "ineq"は不等式 「f(x) ≦ 0」、"fun"は唯のfunctionを表す(偏導関数を与える場合に"jac"と書くが、COBYLAでは使わない)
         cons = ({"type":"ineq","fun":lambda x: -x[0]},             # 0    ≦ low
                 {"type":"ineq","fun":lambda x: -x[1] + x[0]} ,     # low  ≦ high
                 {"type":"ineq","fun":lambda x: -eg_max + x[1]})    # high ≦ max(eg)
@@ -577,6 +577,7 @@ class AnoVAE:
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
 
+        plt.plot(optimize_low,optimize_high, markersize=7, color="gray")
         plt.plot(best_low,best_high,marker="x", markersize=10, color="red")
         plt.text(best_low,best_high,s="({0},{1})".format(best_low,best_high),fontsize=14)
 
