@@ -531,7 +531,7 @@ class AnoVAE:
 
 
         max_eg = max(eg)
-        div = 100
+        div = 50
         x_axis = np.arange(0,max_eg,max_eg/div)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
@@ -554,6 +554,7 @@ class AnoVAE:
                 # -Loss([low,high])はF値を表す
 
                 F_grid = -Loss([low,high])
+
                 x0 = np.array([low, high])
                 bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
                 F_minimize = -Loss([bp.x[0],bp.x[1]])
@@ -567,6 +568,12 @@ class AnoVAE:
                     F_max = F_grid
                     best_low = bp[0]
                     best_high = bp[1]
+
+                step = j*div + i
+                if step % int(div*div/20) == 0:
+                    progress = int(step / int(div*div/20))
+                    print("progress ... [{0}{1}{2}]".format("=="*max(0,progress-1),"=>","--"*(10-progress)))
+
 
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
