@@ -536,10 +536,10 @@ class AnoVAE:
 
             if  i % int(G.TIMESTEPS/20) == 0 :
                 if i == 0:
-                    print("progress ... [{0}]".format("-" * 20 ))
+                    print("step1 ... [{0}]".format("-" * 20 ))
                 else:
                     progress = int(i / int(G.TIMESTEPS/20))
-                    print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
+                    print("step1 ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
         #最適化する関数、wlenは定数
         def Loss(p,args):
@@ -554,6 +554,14 @@ class AnoVAE:
                 F_max = F_minimize
                 best_wlen = wlen
                 best_prominence = bp.x
+
+            if  wlen % int(G.TIMESTEPS/20) == 0 :
+                if wlen == 0:
+                    print("step2 ... [{0}]".format("-" * 20 ))
+                else:
+                    progress = int(wlen / int(G.TIMESTEPS/20))
+                    print("step2 ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
+
 
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
         cont.clabel(fmt="%1.2f",fontsize=14)
@@ -588,8 +596,7 @@ class AnoVAE:
             peak_x_list.append(peak)
             l_index_list.append(l_base)
             r_index_list.append(r_base)
-            for i in range(l_base, r_base + 1):
-                pred[i] = True
+
 
         #l_baseがかぶってる要素を消去
         remove_list = []
@@ -601,6 +608,10 @@ class AnoVAE:
             del peak_x_list[i]
             del l_index_list[i]
             del r_index_list[i]
+
+        for l_base,r_base in zip(l_index_list,r_index_list):
+            for i in range(l_base, r_base + 1):
+                pred[i] = True
 
         return pred,[peak_x_list,l_index_list,r_index_list]
 
