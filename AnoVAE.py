@@ -512,8 +512,8 @@ class AnoVAE:
 
         for i in range(len(x_axis)):
             for j in range(len(y_axis)):
-                wlen = X[i][j]
-                prominence = Y[i][j]
+                wlen = X[j][i]
+                prominence = Y[j][i]
 
                 pred, _ = self.GetErrorRegion(eg, wlen=wlen, prominence=prominence)
 
