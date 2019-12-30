@@ -529,9 +529,9 @@ class AnoVAE:
         #制約条件cons (x[0] == low,x[1] == high),
         # 0 ≦ low ≦ high ≦ max(eg)
         # "ineq"は不等式 「0 ≦ f(x)」、"fun"は唯のfunctionを表す(偏導関数を与える場合に"jac"と書くが、COBYLAでは使わない)
-        cons = ({"type":"ineq","fun":lambda x: x[0]},             # 0    ≦ low
-                {"type":"ineq","fun":lambda x: x[1] - x[0]} ,     # low  ≦ high
-                {"type":"ineq","fun":lambda x: eg_max - x[1]})    # high ≦ max(eg)
+        cons = ({"type":"ineq","fun":lambda x: np.array([x[0],
+                                                         x[1] - x[0],
+                                                         eg_max - x[1]])})
 
         #探索初期値x0
         x0 = np.array([eg_max/2,eg_max/2])
