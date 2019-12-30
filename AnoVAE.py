@@ -499,7 +499,7 @@ class AnoVAE:
             return f1_score(true, pred)
 
         max_eg = max(eg)
-        div = 100 #prominence の分割
+        div = 50 #prominence の分割
         x_axis = np.arange(2,G.TIMESTEPS)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
@@ -514,11 +514,6 @@ class AnoVAE:
             for j in range(len(x_axis)):
                 wlen = X[i][j]
                 prominence = Y[i][j]
-
-                step = i * div + j
-                if step % int(len(Z) / 20) == 0 and step != 0:
-                    progress = int(step / int(len(Z) / 20))
-                    print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
                 #if high > zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
                 pred, _ = self.GetErrorRegion(eg, wlen=wlen, prominence=prominence)
@@ -535,6 +530,10 @@ class AnoVAE:
                     F_max = F_grid
                     best_wlen = wlen
                     best_prominence = prominence
+
+            if  i % int(G.TIMESTEPS/20) == 0 :
+                progress = int(i / int(G.TIMESTEPS/20))
+                print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
         #最適化する関数、wlenは定数
         def Loss(p,args):
