@@ -545,7 +545,7 @@ class AnoVAE:
                 else:
                     pro_size = int(G.TIMESTEPS / 20)
                     speed = pro_size/pro_time
-                    end_time = (len(x_axis)-pro_size*i)/speed
+                    end_time = (len(x_axis)-pro_size*progress)/speed
                     progress = int(i / int(G.TIMESTEPS/20))
                     print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
 
@@ -579,7 +579,7 @@ class AnoVAE:
                 else:
                     pro_size = int(G.TIMESTEPS / 20)
                     speed = pro_size/pro_time
-                    end_time = (len(x_axis)-pro_size*wlen)/speed
+                    end_time = (len(x_axis)-pro_size*progress)/speed
                     progress = int(wlen / int(G.TIMESTEPS/20))
                     print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
 
