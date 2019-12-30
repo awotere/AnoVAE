@@ -542,6 +542,8 @@ class AnoVAE:
         best_high = 0
         F_max = 0
 
+        zero_high = 0
+
         for i in range(div):
             for j in range(div):
                 low = X[i][j]
@@ -553,7 +555,7 @@ class AnoVAE:
                     print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
                 if high <= low:continue # high >= lowでなければならない
-                #if high >= zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
+                if high >= zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
                 # -Loss([low,high])はF値を表す
                 pred, _ = self.GetErrorRegion(eg, prominence_low=low, prominence_high=high)
 
@@ -561,6 +563,7 @@ class AnoVAE:
                 cm = confusion_matrix(true, pred)
                 tn, fp, fn, tp = cm.flatten()
                 if fp + tp == 0: # ピーク検出ゼロ
+                    zero_high
                     Z[i][j] = 0
                 # エラー処理
                 F_grid = -Loss([low,high])
@@ -577,7 +580,7 @@ class AnoVAE:
         if F_max > F_minimize:
             F_max = F_minimize
             best_low = bp.x[0]
-            best_high = bp.y[1]
+            best_high = bp.x[1]
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
