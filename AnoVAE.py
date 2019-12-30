@@ -565,9 +565,9 @@ class AnoVAE:
                 if fp + tp == 0: # ピーク検出ゼロ
                     #zero_high = high
                     Z[i][j] = 0
-                # エラー処理
-                F_grid = -Loss([low,high])
 
+                F_grid = -Loss([low,high])
+                Z[i][j] = F_grid
                 if F_grid > F_max:
                     F_max = F_grid
                     best_low = low
