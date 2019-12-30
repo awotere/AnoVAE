@@ -538,6 +538,9 @@ class AnoVAE:
         x0 = np.reshape(x0,newshape=(-1,))
         bp2 = minimize(Loss2,x0=x0,method="COBYLA",constraints=cons)
 
+        best_low = bp2.x[0]
+        best_high = bp2.x[1]
+
         max_eg = max(eg)
         div = 100
         x_axis = np.arange(0,max_eg,max_eg/div)
@@ -566,14 +569,20 @@ class AnoVAE:
 
 
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
-        cont = plt.contour(X, Y, Z)
+        cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
         cont.clabel(fmt="%1.1f",fontsize=14)
 
-        plt.plot(optimize_low,optimize_high,marker="x", markersize=10, color="red",label="flow",linestyle="None")
+        #plt.plot(optimize_low,optimize_high,marker="x", markersize=10, color="red",label="flow",linestyle="None")
 
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
+
+        plt.plot(best_low,best_high,marker="x", markersize=10, color="red")
+        plt.text(best_low,best_high,s="({0},{1})".format(best_low,best_high),fontsize=14)
+
         plt.show()
+
+
 
         return bp2.x[0],bp2.x[1]
 
