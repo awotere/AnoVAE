@@ -471,7 +471,7 @@ class AnoVAE:
         return er, ep, eg
 
 
-    def GetBestProminence(self,eg):
+    def GetBestParameter(self,eg):
         from scipy.optimize import minimize_scalar,minimize
         from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
 
@@ -481,31 +481,9 @@ class AnoVAE:
         true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
         true = true[G.TIMESTEPS-1:]
 
-        """
-        #最適化する関数
-        def Loss(prominence):
-            pred,_ = self.FindPeaks(eg,prominence_low=0,prominence_high=prominence)
+        def GetF(wlen,prominence):
 
-            #混合行列
-            cm = confusion_matrix(true, pred)
-            tn, fp, fn, tp = cm.flatten()
-            if fp + tp == 0:return 1 #エラー処理
-
-            # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
-            # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
-
-            # 出力はF値(recallとprecisionの調和平均)
-            # F値の最大化したいが、minimizeなのでF値の最大値1から減算
-            print(prominence)
-            return 1 - f1_score(true, pred)
-
-        #bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
-        """
-
-        def Loss(p):
-            p_low = p[0]
-            p_high = p[1]
-            pred,_ = self.GetErrorRegion(eg,prominence_low=p_low,prominence_high=p_high)
+            pred,_ = self.GetErrorRegion(eg,wlen=wlen,prominence=prominence)
 
             #混合行列
             cm = confusion_matrix(true, pred)
@@ -518,105 +496,89 @@ class AnoVAE:
             # 出力はF値(recallとprecisionの調和平均)
             # F値の最大化したいが、minimizeなのでF値の最大値1から減算
 
-            return - f1_score(true, pred)
-
-        eg_max = max(eg)
-
-        #制約条件cons (x[0] == low,x[1] == high),
-        # 0 ≦ low ≦ high ≦ max(eg)
-        # "ineq"は不等式 「f(x) ≦ 0」、"fun"は唯のfunctionを表す(偏導関数を与える場合に"jac"と書くが、COBYLAでは使わない)
-        cons = ({"type":"ineq","fun":lambda x: -x[0]},             # 0    ≦ low
-                {"type":"ineq","fun":lambda x: -x[1] + x[0]} ,     # low  ≦ high
-                {"type":"ineq","fun":lambda x: -eg_max + x[1]})    # high ≦ max(eg)
-
+            return f1_score(true, pred)
 
         max_eg = max(eg)
-        div = 100
-        x_axis = np.arange(0,max_eg,max_eg/div)
+        div = 100 #prominence の分割
+        x_axis = np.arange(1,G.TIMESTEPS)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
 
-        Z = np.zeros(shape=(div,div))
+        Z = np.zeros(shape=(div,G.TIMESTEPS))
 
-        best_low = 0
-        best_high = 0
+        best_wlen = 0
+        best_prominence = 0
         F_max = 0
 
-        #zero_high = eg_max
-
-        for i in range(div):
-            for j in range(div):
-                low = X[i][j]
-                high = Y[i][j]
+        for i in range(len(y_axis)):
+            for j in range(len(x_axis)):
+                wlen = X[i][j]
+                prominence = Y[i][j]
 
                 step = i * div + j
-                if step % int(div * div / 20) == 0:
-                    progress = int(step / int(div * div / 20))
+                if step % int(len(Z) / 20) == 0 and step != 0:
+                    progress = int(step / int(len(Z) / 20))
                     print("progress ... [{0}{1}{2}]".format("=" * max(0, progress - 1), ">", "-" * (20 - progress)))
 
-                if high <= low:continue # high >= lowでなければならない
                 #if high > zero_high:continue #zero_high よりも大きいhighでは必ず必ずピークが検出されない -> F == 0
-                # -Loss([low,high])はF値を表す
-                pred, _ = self.GetErrorRegion(eg, prominence_low=low, prominence_high=high)
+                pred, _ = self.GetErrorRegion(eg, wlen=wlen, prominence=prominence)
 
                 # 混合行列
                 cm = confusion_matrix(true, pred)
                 tn, fp, fn, tp = cm.flatten()
                 if fp + tp == 0: # ピーク検出ゼロ
-                    #zero_high = high
                     Z[i][j] = 0
 
-                F_grid = -Loss([low,high])
+                F_grid = GetF(wlen,prominence)
                 Z[i][j] = F_grid
                 if F_grid > F_max:
                     F_max = F_grid
-                    best_low = low
-                    best_high = high
+                    best_wlen = wlen
+                    best_prominence = prominence
 
+        #最適化する関数、wlenは定数
+        def Loss(p,args):
+            wlen = args
+            return -GetF(wlen,p)
 
-        x0 = np.array([best_low, best_high])
-        bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
-        F_minimize = -Loss([bp.x[0], bp.x[1]])
-        if F_max < F_minimize:
-            F_max = F_minimize
-            best_low = bp.x[0]
-            best_high = bp.x[1]
+        for wlen in range(1,G.TIMESTEPS + 1):
+            bp = minimize_scalar(Loss,args=[wlen],bounds=(0.0,max_eg),method="Bounded")
 
-        #plt.imshow(Z,interpolation="nearest",cmap="jet")
+            F_minimize = GetF(wlen, bp.x)
+            if F_max < F_minimize:
+                F_max = F_minimize
+                best_wlen = wlen
+                best_prominence = bp.x
+
         cont = plt.contour(X, Y, Z,levels=[0,0.2,0.4,0.5,0.6,0.7,0.75,0.8,0.85,0.9])
         cont.clabel(fmt="%1.2f",fontsize=14)
-
-        #plt.plot(optimize_low,optimize_high,marker="x", markersize=10, color="red",label="flow",linestyle="None")
 
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
 
-        #plt.plot(optimize_low,optimize_high, markersize=7, color="gray")
-        plt.plot(best_low,best_high,marker="x", markersize=10, color="red")
-        plt.text(best_low,best_high,s="({0:1.3f},{1:1.3f}):F = {2:1.3f}".format(best_low,best_high,F_max),fontsize=14)
+        plt.plot(best_wlen,best_prominence,marker="x", markersize=10, color="red")
+        plt.text(best_wlen,best_prominence,s="({0},{1:1.3f}):F = {2:1.3f}".format(best_wlen,best_prominence,F_max),fontsize=14)
 
         plt.show()
 
+        return best_wlen,best_prominence
 
-
-        return best_low,best_high
-
-    def FindPeaks(self,eg,prominence_low,prominence_high):
+    def FindPeaks(self,eg,wlen,prominence):
         from scipy.signal import find_peaks,peak_prominences
         pred = [False] * len(eg)
         h = self.THRESHOLD_EG  # 最低ピーク値
         #d = int(G.TIMESTEPS * 0.5)  # ピーク同士の距離の最小値
-        wlen = G.TIMESTEPS
+        #wlen = G.TIMESTEPS
 
         # ピーク検出
-        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=prominence_low)
+        peaks,properties = find_peaks(eg, height=h,wlen=wlen,prominence=(None,max(eg)))
         # Error特定(ピークの左端を利用する), eg[peak] - eg[l_base] と prominence(最適化対象)を比較
         peak_x_list = []
         l_index_list = []
         r_index_list = []
         for peak, l_base,r_base in zip(peaks, properties["left_bases"],properties["right_bases"]):
             if eg[l_base] > eg[r_base]:continue
-            if eg[peak] - eg[l_base] < prominence_high:continue
+            if eg[peak] - eg[l_base] < prominence:continue
 
             peak_x_list.append(peak)
             l_index_list.append(l_base)
@@ -637,8 +599,8 @@ class AnoVAE:
 
         return pred,[peak_x_list,l_index_list,r_index_list]
 
-    def GetErrorRegion(self,eg,prominence_low,prominence_high):
-        pred, peaks_data = self.FindPeaks(eg, prominence_low=prominence_low,prominence_high=prominence_high)
+    def GetErrorRegion(self,eg,wlen,prominence):
+        pred, peaks_data = self.FindPeaks(eg, wlen=wlen,prominence=prominence)
         pred = [P and T for P,T in zip(pred,np.array(eg) > self.THRESHOLD_EG)]
         return pred,peaks_data
 
@@ -862,12 +824,10 @@ class AnoVAE:
         # 閾値決定
         #error_threshold = self.GetErrorRateThreshold(error_rate)
 
-        best_p_low,best_p_high = self.GetBestProminence(eg)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=best_p_low,prominence_high=best_p_high)
+        best_wlen,best_prominence = self.GetBestParameter(eg)
+        pred,peaks_data = self.GetErrorRegion(eg,wlen=best_wlen,prominence=best_prominence)
 
         self.ShowErrorRegion(true,pred,eg,peaks_data)
-
-        #self.ShowErrorRegion(true, error_rate, error_threshold)
 
         ############################# 2回目 推論 ##############################
 
@@ -889,7 +849,7 @@ class AnoVAE:
 
         # 評価指標計算
         _, _, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
-        pred,peaks_data = self.GetErrorRegion(eg,prominence_low=best_p_low,prominence_high=best_p_high)
+        pred,peaks_data = self.GetErrorRegion(eg,wlen=best_wlen,prominence=best_prominence)
 
         self.ShowErrorRegion(true, pred,eg,peaks_data)
 
