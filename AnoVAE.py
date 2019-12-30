@@ -586,7 +586,7 @@ class AnoVAE:
 
 
 
-        return bp2.x[0],bp2.x[1]
+        return best_low,best_high
 
     def FindPeaks(self,eg,prominence_low,prominence_high):
         from scipy.signal import find_peaks,peak_prominences
