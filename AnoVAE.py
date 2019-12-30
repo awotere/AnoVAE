@@ -499,16 +499,18 @@ class AnoVAE:
             return f1_score(true, pred)
 
         max_eg = max(eg)
-        div = 50 #prominence の分割
+        div = 20 #prominence の分割
         x_axis = np.arange(2,G.TIMESTEPS)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
 
-        Z = np.zeros(shape=(G.TIMESTEPS,div))
+        Z = np.zeros(shape=(div,G.TIMESTEPS))
 
         best_wlen = 0
         best_prominence = 0
         F_max = 0
+
+        print("step1 wlen-prominenceグラフ作成")
 
         for i in range(len(x_axis)):
             for j in range(len(y_axis)):
@@ -521,11 +523,12 @@ class AnoVAE:
                 cm = confusion_matrix(true, pred)
                 tn, fp, fn, tp = cm.flatten()
                 if fp + tp == 0: # ピーク検出ゼロ
-                    Z[i][j] = 0
+                    Z[j][i] = 0
                     continue
 
                 F_grid = GetF(wlen,prominence)
-                Z[i][j] = F_grid
+                Z[j][i] = F_grid
+
                 if F_grid > F_max:
                     F_max = F_grid
                     best_wlen = wlen
