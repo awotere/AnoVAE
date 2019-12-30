@@ -500,7 +500,7 @@ class AnoVAE:
 
         max_eg = max(eg)
         div = 100 #prominence の分割
-        x_axis = np.arange(1,G.TIMESTEPS)
+        x_axis = np.arange(2,G.TIMESTEPS)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
 
@@ -541,7 +541,7 @@ class AnoVAE:
             wlen = args
             return -GetF(wlen,p)
 
-        for wlen in range(1,G.TIMESTEPS + 1):
+        for wlen in x_axis:
             bp = minimize_scalar(Loss,args=[wlen],bounds=(0.0,max_eg),method="Bounded")
 
             F_minimize = GetF(wlen, bp.x)
