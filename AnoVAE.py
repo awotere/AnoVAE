@@ -504,7 +504,9 @@ class AnoVAE:
 
         optimize_low = []
         optimize_high = []
-        def Loss2(p_low,p_high):
+        def Loss2(p):
+            p_low = p[0]
+            p_high = p[1]
             pred,_ = self.GetErrorRegion(eg,prominence_low=p_low,prominence_high=p_high)
 
             #混合行列
