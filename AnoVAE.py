@@ -577,7 +577,7 @@ class AnoVAE:
         x0 = np.array([best_low, best_high])
         bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
         F_minimize = -Loss([bp.x[0], bp.x[1]])
-        if F_max > F_minimize:
+        if F_max < F_minimize:
             F_max = F_minimize
             best_low = bp.x[0]
             best_high = bp.x[1]
