@@ -556,7 +556,7 @@ class AnoVAE:
                 F_grid = -Loss([low,high])
                 x0 = np.array([low, high])
                 bp = minimize(Loss, x0=x0, method="COBYLA", constraints=cons)
-                F_minimize = -Loss(bp)
+                F_minimize = -Loss([bp.x[0],bp.x[1]])
 
                 if F_grid > F_max:
                     F_max = F_grid
