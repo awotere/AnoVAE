@@ -510,7 +510,10 @@ class AnoVAE:
         best_prominence = 0
         F_max = 0
 
+        progless_div = 20
+
         print("step1 wlen-prominenceグラフ作成")
+        print("step1 ... [{0}] 残り時間:-".format("-" * 20))
         t = time.time()
         for i in range(len(x_axis)):
             for j in range(len(y_axis)):
@@ -534,24 +537,16 @@ class AnoVAE:
                     best_wlen = wlen
                     best_prominence = prominence
 
-            if  i % int(G.TIMESTEPS/20) == 0 :
+            if  i % int(len(x_axis)/20) == 0 and i != 0:
                 pro_time = time.time() - t
-
-                if i == 0:
-                    pro_size = int(G.TIMESTEPS / 20) - 2
-                    speed = pro_size/pro_time
-                    end_time = (len(x_axis)-pro_size)/speed
-                    print("step1 ... [{0}] 残り時間:{1:1.2f}s".format("-" * 20,end_time))
-                else:
-                    pro_size = int(G.TIMESTEPS / 20)
-                    speed = pro_size/pro_time
-                    progress = int(i / int(G.TIMESTEPS/20))
-                    end_time = (len(x_axis)-pro_size*progress)/speed
-                    print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
-
+                progress =  int(i / int(len(x_axis)/20))
+                end_time = (progless_div - progress) * pro_time
+                print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
+                                                                    "-" * (20 - progress), end_time))
                 t = time.time()
 
         print("\nstep2 minimize予測")
+        print("step2 ... [{0}] 残り時間:-".format("-" * 20))
 
         #最適化する関数、wlenは定数
         def Loss(p,args):
@@ -568,21 +563,12 @@ class AnoVAE:
                 best_wlen = wlen
                 best_prominence = bp.x
 
-            if  wlen % int(G.TIMESTEPS/20) == 0 :
+            if wlen % int(len(x_axis) / 20) == 0 and wlen != 0:
                 pro_time = time.time() - t
-
-                if wlen == 0:
-                    pro_size = int(G.TIMESTEPS / 20) - 2
-                    speed = pro_size/pro_time
-                    end_time = (len(x_axis)-pro_size)/speed
-                    print("step1 ... [{0}] 残り時間:{1:1.2f}s".format("-" * 20,end_time))
-                else:
-                    pro_size = int(G.TIMESTEPS / 20)
-                    speed = pro_size/pro_time
-                    progress = int(wlen / int(G.TIMESTEPS/20))
-                    end_time = (len(x_axis)-pro_size*progress)/speed
-                    print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">", "-" * (20 - progress),end_time))
-
+                progress = int(wlen / int(len(x_axis) / 20))
+                end_time = (progless_div - progress) * pro_time
+                print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
+                                                                    "-" * (20 - progress), end_time))
                 t = time.time()
 
 
