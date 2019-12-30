@@ -472,7 +472,7 @@ class AnoVAE:
 
 
     def GetBestProminence(self,eg):
-        from scipy.optimize import minimize_scalar
+        from scipy.optimize import minimize_scalar,minimize
         from sklearn.metrics import f1_score, confusion_matrix, recall_score, precision_score,accuracy_score
 
         MSGBOX.showinfo("AnoVAE>TestCSV()", "異常範囲データを指定してください")
@@ -480,6 +480,8 @@ class AnoVAE:
 
         true = np.loadtxt(tf_path, dtype=bool, encoding="utf-8-sig")  # Ground truth
         true = true[G.TIMESTEPS-1:]
+
+        """
         #最適化する関数
         def Loss(prominence):
             pred,_ = self.FindPeaks(eg,prominence_low=0,prominence_high=prominence)
@@ -497,7 +499,42 @@ class AnoVAE:
             print(prominence)
             return 1 - f1_score(true, pred)
 
-        bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
+        #bp = minimize_scalar(Loss,bounds=(0.0,max(eg)),method="bounded")
+        """
+
+        optimize_low = []
+        optimize_high = []
+        def Loss2(p_low,p_high):
+            pred,_ = self.GetErrorRegion(eg,prominence_low=p_low,prominence_high=p_high)
+
+            #混合行列
+            cm = confusion_matrix(true, pred)
+            tn, fp, fn, tp = cm.flatten()
+            if fp + tp == 0:return 1 #エラー処理
+
+            # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
+            # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
+
+            # 出力はF値(recallとprecisionの調和平均)
+            # F値の最大化したいが、minimizeなのでF値の最大値1から減算
+            optimize_low.append(p_low)
+            optimize_high.append(p_high)
+
+            return 1 - f1_score(true, pred)
+
+        eg_max = max(eg)
+
+        #制約条件cons (x[0] == low,x[1] == high),
+        # 0 ≦ low ≦ high ≦ max(eg)
+        # "ineq"は不等式 「0 ≦ f(x)」、"fun"は唯のfunctionを表す(偏導関数を与える場合に"jac"と書くが、COBYLAでは使わない)
+        cons = ({type:"ineq","fun":lambda x: x[0]},             # 0    ≦ low
+                {type:"ineq","fun":lambda x: x[1] - x[0]} ,     # low  ≦ high
+                {type:"ineq","fun":lambda x: eg_max - x[1]})    # high ≦ max(eg)
+
+        #探索初期値x0
+        x0 = np.array([eg_max,eg_max])
+
+        bp2 = minimize(Loss2,x0=x0,method="COBYLA",constraints=cons)
 
         max_eg = max(eg)
         div = 100
@@ -515,7 +552,7 @@ class AnoVAE:
                 if high <= low:
                     Z[i][j] = 0
                     continue
-                pred, _ = self.FindPeaks(eg, prominence_low=low, prominence_high=high)
+                pred, _ = self.GetErrorRegion(eg, prominence_low=low, prominence_high=high)
 
                 # 混合行列
                 cm = confusion_matrix(true, pred)
@@ -529,6 +566,14 @@ class AnoVAE:
         #plt.imshow(Z,interpolation="nearest",cmap="jet")
         cont = plt.contour(X, Y, Z)
         cont.clabel(fmt="%1.1f",fontsize=14)
+
+        for i in range(len(optimize_low)-1):
+            plt.anotate("",
+                        xy=(optimize_low[i+1],optimize_high[i+1]),
+                        xytext=(optimize_low[i],optimize_high[i]),
+                        arrowstyle="->"
+                        )
+
         plt.xlabel("prominence low")
         plt.ylabel("prominence high")
         plt.show()
