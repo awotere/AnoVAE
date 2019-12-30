@@ -499,7 +499,7 @@ class AnoVAE:
             return f1_score(true, pred)
 
         max_eg = max(eg)
-        div = 20 #prominence の分割
+        div = 30 #prominence の分割
         x_axis = np.arange(2,G.TIMESTEPS)
         y_axis = np.arange(0,max_eg,max_eg/div)
         X,Y = np.meshgrid(x_axis,y_axis)
