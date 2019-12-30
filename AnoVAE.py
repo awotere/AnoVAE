@@ -488,7 +488,7 @@ class AnoVAE:
             #混合行列
             cm = confusion_matrix(true, pred)
             tn, fp, fn, tp = cm.flatten()
-            if fp + tp == 0:return 1 #エラー処理
+            if fp + tp == 0:return 0 #エラー処理
 
             # recall: 検出率(実際の異常範囲の内、異常と検出できた割合)
             # precision: 精度(予測した異常範囲の内、実際に異常であった割合)
