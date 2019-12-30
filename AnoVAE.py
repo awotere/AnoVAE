@@ -573,7 +573,10 @@ class AnoVAE:
             plt.annotate("",
                         xy=(optimize_low[i+1],optimize_high[i+1]),
                         xytext=(optimize_low[i],optimize_high[i]),
-                        arrowstyle="->"
+                        arrowprops = dict(arrowstyle="->",
+                                          connectionstyle='arc3',
+                                          facecolor='C0',
+                                          edgecolor='C0')
                         )
 
         plt.xlabel("prominence low")
