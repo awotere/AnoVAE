@@ -72,7 +72,8 @@ class AnoVAE:
             self.LoadMINMAX()
 
         # データ読み込み(サンプル数,)
-        X = np.loadtxt(path, encoding="utf-8-sig")
+
+        X = np.loadtxt(fname=path,dtype=float, encoding="utf-8-sig")
 
         # 最小値を0にして0-1に圧縮(clampはしない)
         # clamp = lambda x, min_val_a, max_val_a: min(max_val_a, max(x, min_val_a))
@@ -104,7 +105,7 @@ class AnoVAE:
 
         from keras.layers import Input, Dense, Lambda, concatenate
         from keras.layers import GRU
-        # from keras.layers import CuDNNGRU as GRU  # GPU用
+        #from keras.layers import CuDNNGRU as GRU  # GPU用
         from keras.models import Model
 
         # encoderの定義
@@ -152,7 +153,7 @@ class AnoVAE:
 
         from keras.layers import Input, Dense, RepeatVector, TimeDistributed
         from keras.layers import GRU
-        # from keras.layers import CuDNNGRU as GRU  # GPU用
+        #from keras.layers import CuDNNGRU as GRU  # GPU用
         from keras.models import Model
 
         # decoderの定義
@@ -311,7 +312,7 @@ class AnoVAE:
         self.load_weight_flag = True
         return
 
-    def SetEGThreshold(self, path=None):
+    def SetEGThreshold(self, path=None,div = 1.0):
 
         # 正常データのパス
         if path is None:
@@ -320,11 +321,16 @@ class AnoVAE:
 
         X_encoder, X_decoder = self.BuildData(path)
 
+        div_num = int(1/div)
+        X_encoder = [X_encoder[c] for c in range(0,len(X_encoder),div_num)]
+        X_decoder = [X_decoder[c] for c in range(0,len(X_decoder),div_num)]
+
         mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
 
         _, _, eg= self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
 
         self.THRESHOLD_EG = np.max(eg)
+        print("max(EG) = {0} ".format(self.THRESHOLD_EG))
 
         self.set_threshold_flag = True
         return
@@ -467,7 +473,7 @@ class AnoVAE:
 
         from scipy.signal import savgol_filter
         eg = list(savgol_filter(G_mean,window_length=21,polyorder=7))
-
+        #eg = G_mean
         return er, ep, eg
 
 
@@ -567,7 +573,7 @@ class AnoVAE:
                 pro_time = time.time() - t
                 progress = int(wlen / len(x_axis) * progless_div)
                 end_time = (progless_div - progress) * pro_time
-                print("step1 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
+                print("step2 ... [{0}{1}{2}] 残り時間:{3:1.2f}s".format("=" * max(0, progress - 1), ">",
                                                                     "-" * (20 - progress), end_time))
                 t = time.time()
 
@@ -627,6 +633,7 @@ class AnoVAE:
     def GetErrorRegion(self,eg,wlen,prominence):
         pred, peaks_data = self.FindPeaks(eg, wlen=wlen,prominence=prominence)
         pred = [P and T for P,T in zip(pred,np.array(eg) > self.THRESHOLD_EG)]
+
         return pred,peaks_data
 
 
@@ -690,7 +697,7 @@ class AnoVAE:
         # original
         plt.subplot(4, 1, 1)
         plt.ylabel("Value")
-        plt.ylim(0, 1)
+        #plt.ylim(0, 1)
         plt.plot(x_axis, true, label="original")
         plt.legend()
 
@@ -712,7 +719,7 @@ class AnoVAE:
         plt.subplot(4, 1, 4)
         plt.ylabel("EG")
         #plt.ylim(0, 1)
-        plt.plot(x_axis, offset + eg, label="Geometric mean + GS7-21 Filter")
+        plt.plot(x_axis, offset + eg, label="Geometric mean + Savitzky-Golay 7-21 Filter")
         plt.legend()
 
         plt.show()
@@ -795,7 +802,7 @@ class AnoVAE:
         plt.show()
 
     # テストデータ(CSV)を評価する関数
-    def TestCSV(self, path=None):
+    def TestCSV(self, path=None,div=1.0):
 
         print("CSVTestを実行します")
 
@@ -825,6 +832,12 @@ class AnoVAE:
         # テストデータセット作成
         X_encoder, X_decoder = self.BuildData(path)
         print("データセットを作成しました:\n{0}".format(path))
+
+        div_num = int(1/div)
+        print("{0}%のデータだけを利用します".format(div*100))
+        X_encoder = np.array([X_encoder[c] for c in range(0,len(X_encoder),div_num)])
+        X_decoder = np.array([X_decoder[c] for c in range(0,len(X_decoder),div_num)])
+
         print("再構成しています...")
 
         # 再構成
@@ -879,6 +892,67 @@ class AnoVAE:
         self.ShowErrorRegion(true, pred,eg,peaks_data)
 
         return
+
+    def ReadAndCalculateEG(self,path=None,div=1.0):
+        """運用"""
+        print("ReadAndCalculateEGを実行します")
+
+        ############################# パラメータの設定 ##############################
+        # weightの読み込み
+        if not self.load_weight_flag:
+            self.LoadWeight()
+        print("重みデータを読み込みました")
+
+        # 閾値の読み込み
+        if not self.set_threshold_flag:
+            self.SetEGThreshold()
+        print("評価指標用の閾値の設定を行いました\n EG:{0}".format(self.THRESHOLD_EG))
+
+        # minmaxの設定
+        if not self.load_minmax_flag:
+            self.LoadMINMAX()
+        print("学習レンジの設定を行いました\n min:{0}   MAX:{1}".format(self.MIN, self.MAX))
+
+        ############################# 推論 ##############################
+
+        # テスト用csvファイルのパスを取得
+        if path is None:
+            MSGBOX.showinfo("AnoVAE", "testデータを選んでください")
+            path = GetFilePathFromDialog([("テスト用csv", "*.csv"), ("すべてのファイル", "*")])
+
+        # テストデータセット作成
+        X_encoder, X_decoder = self.BuildData(path)
+        print("データセットを作成しました:\n{0}".format(path))
+
+        true = list(np.reshape(X_encoder[0], newshape=(-1,)))
+        true += [X_encoder[i][G.TIMESTEPS - 1][0] for i in range(1, X_encoder.shape[0])]
+
+        div_num = int(1 / div)
+        print("{0}%のデータだけを利用します".format(div * 100))
+        X_encoder = np.array([X_encoder[c] for c in range(0, len(X_encoder), div_num)])
+        X_decoder = np.array([X_decoder[c] for c in range(0, len(X_decoder), div_num)])
+
+        print("再構成しています...")
+
+        # 再構成
+        t = time.time()
+        mu_list, sigma_list, X_reco = self.ThreadPredict([X_encoder, X_decoder], thread_size=8)
+        pro_time = time.time() - t
+        print("再構成完了! 処理時間: {0:.2f}s  処理速度: {1:.2f} process/s".format(pro_time, X_encoder.shape[0] / pro_time))
+
+        ############################# 評価 ##############################
+
+        # 評価指標計算
+        er, ep, eg = self.GetScore(X_encoder, X_reco, mu_list, sigma_list)
+        print(eg)
+
+        return eg
+
+    def __del__(self):
+        from keras import backend as K
+        import tensorflow as tf
+        K.clear_session()
+        tf.reset_default_graph()
 
 
 def main():
